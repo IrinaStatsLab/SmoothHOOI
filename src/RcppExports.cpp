@@ -11,55 +11,102 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// rcpparma_hello_world
-arma::mat rcpparma_hello_world();
-RcppExport SEXP _SmoothHOOI_rcpparma_hello_world() {
+// cglram
+Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda, Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter);
+RcppExport SEXP _SmoothHOOI_cglram(SEXP tnsrSEXP, SEXP ranksSEXP, SEXP lambdaSEXP, SEXP L0_SEXP, SEXP DSEXP, SEXP tolSEXP, SEXP max_iterSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(rcpparma_hello_world());
+    Rcpp::traits::input_parameter< const arma::cube& >::type tnsr(tnsrSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type ranks(ranksSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type L0_(L0_SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(cglram(tnsr, ranks, lambda, L0_, D, tol, max_iter));
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpparma_outerproduct
-arma::mat rcpparma_outerproduct(const arma::colvec& x);
-RcppExport SEXP _SmoothHOOI_rcpparma_outerproduct(SEXP xSEXP) {
+// mglram
+Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda, Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter, double init);
+RcppExport SEXP _SmoothHOOI_mglram(SEXP tnsrSEXP, SEXP ranksSEXP, SEXP lambdaSEXP, SEXP L0_SEXP, SEXP DSEXP, SEXP tolSEXP, SEXP max_iterSEXP, SEXP initSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpparma_outerproduct(x));
+    Rcpp::traits::input_parameter< const arma::cube& >::type tnsr(tnsrSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type ranks(ranksSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type L0_(L0_SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type init(initSEXP);
+    rcpp_result_gen = Rcpp::wrap(mglram(tnsr, ranks, lambda, L0_, D, tol, max_iter, init));
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpparma_innerproduct
-double rcpparma_innerproduct(const arma::colvec& x);
-RcppExport SEXP _SmoothHOOI_rcpparma_innerproduct(SEXP xSEXP) {
+// oracle
+Rcpp::List oracle(const arma::cube& tnsr, const arma::cube& smooth_tnsr, const arma::mat& rank_grid, const arma::vec& lambda_seq, Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter, double init);
+RcppExport SEXP _SmoothHOOI_oracle(SEXP tnsrSEXP, SEXP smooth_tnsrSEXP, SEXP rank_gridSEXP, SEXP lambda_seqSEXP, SEXP L0_SEXP, SEXP DSEXP, SEXP tolSEXP, SEXP max_iterSEXP, SEXP initSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpparma_innerproduct(x));
+    Rcpp::traits::input_parameter< const arma::cube& >::type tnsr(tnsrSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type smooth_tnsr(smooth_tnsrSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type rank_grid(rank_gridSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type lambda_seq(lambda_seqSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type L0_(L0_SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type init(initSEXP);
+    rcpp_result_gen = Rcpp::wrap(oracle(tnsr, smooth_tnsr, rank_grid, lambda_seq, L0_, D, tol, max_iter, init));
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpparma_bothproducts
-Rcpp::List rcpparma_bothproducts(const arma::colvec& x);
-RcppExport SEXP _SmoothHOOI_rcpparma_bothproducts(SEXP xSEXP) {
+// kcv
+Rcpp::List kcv(const arma::cube& tnsr, const arma::mat& rank_grid, const arma::vec& lambda_seq, int k, Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter, double init);
+RcppExport SEXP _SmoothHOOI_kcv(SEXP tnsrSEXP, SEXP rank_gridSEXP, SEXP lambda_seqSEXP, SEXP kSEXP, SEXP L0_SEXP, SEXP DSEXP, SEXP tolSEXP, SEXP max_iterSEXP, SEXP initSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpparma_bothproducts(x));
+    Rcpp::traits::input_parameter< const arma::cube& >::type tnsr(tnsrSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type rank_grid(rank_gridSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type lambda_seq(lambda_seqSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type L0_(L0_SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type init(initSEXP);
+    rcpp_result_gen = Rcpp::wrap(kcv(tnsr, rank_grid, lambda_seq, k, L0_, D, tol, max_iter, init));
+    return rcpp_result_gen;
+END_RCPP
+}
+// loss
+Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr, const arma::mat& L, const arma::mat& true_L, const arma::mat& R, const arma::mat& true_R);
+RcppExport SEXP _SmoothHOOI_loss(SEXP tnsrSEXP, SEXP smooth_tnsrSEXP, SEXP LSEXP, SEXP true_LSEXP, SEXP RSEXP, SEXP true_RSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type tnsr(tnsrSEXP);
+    Rcpp::traits::input_parameter< const arma::cube& >::type smooth_tnsr(smooth_tnsrSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type L(LSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type true_L(true_LSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type R(RSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type true_R(true_RSEXP);
+    rcpp_result_gen = Rcpp::wrap(loss(tnsr, smooth_tnsr, L, true_L, R, true_R));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_SmoothHOOI_rcpparma_hello_world", (DL_FUNC) &_SmoothHOOI_rcpparma_hello_world, 0},
-    {"_SmoothHOOI_rcpparma_outerproduct", (DL_FUNC) &_SmoothHOOI_rcpparma_outerproduct, 1},
-    {"_SmoothHOOI_rcpparma_innerproduct", (DL_FUNC) &_SmoothHOOI_rcpparma_innerproduct, 1},
-    {"_SmoothHOOI_rcpparma_bothproducts", (DL_FUNC) &_SmoothHOOI_rcpparma_bothproducts, 1},
+    {"_SmoothHOOI_cglram", (DL_FUNC) &_SmoothHOOI_cglram, 7},
+    {"_SmoothHOOI_mglram", (DL_FUNC) &_SmoothHOOI_mglram, 8},
+    {"_SmoothHOOI_oracle", (DL_FUNC) &_SmoothHOOI_oracle, 9},
+    {"_SmoothHOOI_kcv", (DL_FUNC) &_SmoothHOOI_kcv, 9},
+    {"_SmoothHOOI_loss", (DL_FUNC) &_SmoothHOOI_loss, 6},
     {NULL, NULL, 0}
 };
 

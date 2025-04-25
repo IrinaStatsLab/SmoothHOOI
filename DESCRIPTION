@@ -10,5 +10,9 @@ License: GPL (>= 2)
 Suggests: tinytest
 Encoding: UTF-8
 RoxygenNote: 7.2.3
-Imports: Rcpp (>= 1.0.14)
+Imports: 
+    MASS,
+    Rcpp (>= 1.0.14),
+    refund,
+    rTensor
 LinkingTo: Rcpp, RcppArmadillo
