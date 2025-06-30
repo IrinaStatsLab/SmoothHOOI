@@ -52,8 +52,8 @@ arma::cube ImputeTnsr_cpp(const arma::cube& tnsr, double num){
 // D: difference matrix
 // tol: tolerance, used as convergence criteria
 // max_iter: maximum number of iterations
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::export]]
+// // [[Rcpp::depends(RcppArmadillo)]]
+// // [[Rcpp::export]]
 Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda, 
                   Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter) {
   int a = tnsr.n_rows; // original dimension of mode 1

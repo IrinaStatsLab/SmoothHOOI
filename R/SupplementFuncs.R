@@ -12,7 +12,7 @@ SecDiffMat <- function(dim){
 # mask a certain percent of data randomly across the tensor
 # tnsr - tnsr to be masked
 # percent - percent of data to be masked
-mask1<-function(tnsr,percent){
+.mask1<-function(tnsr,percent){
   idx <- which(!is.na(tnsr@data))
   rand_sample <- sample(length(idx),ceiling(length(idx)*percent))
   masked_idx <- idx[rand_sample]
@@ -26,7 +26,7 @@ mask1<-function(tnsr,percent){
 # tnsr - tnsr to be masked
 # modes - the minimum unit you want to create missing values in
 # percent - percent of data to be masked
-mask2<-function(tnsr, modes, percent){ 
+.mask2<-function(tnsr, modes, percent){ 
   unfolded <- rTensor::unfold(tnsr, row_idx=modes, col_idx = setdiff(seq(1,tnsr@num_modes,by=1),modes))
   n <- dim(unfolded)[1]
   m <- dim(unfolded)[2]
@@ -43,7 +43,7 @@ mask2<-function(tnsr, modes, percent){
 # tnsr - tnsr to be masked
 # modes - the minimum unit you want to create missing values in
 # percent - percent of data to be masked
-mask3<-function(tnsr, modes){ 
+.mask3<-function(tnsr, modes){ 
   unfolded <- rTensor::unfold(tnsr, row_idx=modes, col_idx = setdiff(seq(1,tnsr@num_modes,by=1),modes))
   n <- dim(unfolded)[1]
   m <- dim(unfolded)[2]
@@ -60,7 +60,7 @@ mask3<-function(tnsr, modes){
 
 # This function is to mask the ABPM data in a structured way: 0-20 timepoints in a 24-hour period
 # tnsr - tnsr to be masked 
-mask4 <- function(tnsr){
+.mask4 <- function(tnsr){
   n <- tnsr@modes[3]
   for (i in 1:n){
     mask_num <- sample(c(0:20), 1)
@@ -104,9 +104,9 @@ simdata_generator <- function(L, G, R, E, p, noise_level, pattern, percent){
   
   # mask the noisy data
   if (pattern=="random"){
-    sim_Mmiss <- mask1(sim_Mnoise, percent = percent)
+    sim_Mmiss <- .mask1(sim_Mnoise, percent = percent)
   } else if (pattern=="structured"){
-    sim_Mmiss <- mask4(sim_Mnoise)
+    sim_Mmiss <- .mask4(sim_Mnoise)
   }
   
   out=list(sim_Msmooth=sim_Msmooth, sim_Mmiss=sim_Mmiss)
@@ -142,9 +142,9 @@ synthetic_data <- function(L, R, mean_G, cov_G, E, p, noise_level, pattern, perc
   
   # mask the noisy data
   if (pattern=="random"){
-    sim_Mmiss <- mask1(sim_Mnoise, percent = percent)
+    sim_Mmiss <- .mask1(sim_Mnoise, percent = percent)
   } else if (pattern=="structured"){
-    sim_Mmiss <- mask4(sim_Mnoise)
+    sim_Mmiss <- .mask4(sim_Mnoise)
   }
   
   out=list(sim_Msmooth=sim_Msmooth, sim_Mmiss=sim_Mmiss)
@@ -166,14 +166,6 @@ fpca_res <- function(tnsr, smooth_tnsr, true_L, npc=NULL, pve=0.99, center=TRUE)
     outfpca[[i]] <- refund::fpca.sc(Y = as.matrix(h[[i]]), pve=pve, npc = npc, center=center)
   }
   
-  # h1 <- rTensor::unfold(tnsr[,1,], row_idx = 2, col_idx = 1)@data
-  # h2 <- rTensor::unfold(tnsr[,2,], row_idx = 2, col_idx = 1)@data
-  # h3 <- rTensor::unfold(tnsr[,3,], row_idx = 2, col_idx = 1)@data
-  
-  # outfpca1 <- refund::fpca.sc(Y = as.matrix(h1), pve=pve, npc = npc, center=center)
-  # outfpca2 <- refund::fpca.sc(Y = as.matrix(h2), pve=pve, npc = npc, center=center)
-  # outfpca3<- refund::fpca.sc(Y = as.matrix(h3), pve=pve, npc = npc, center=center)
-  
   p <- tnsr@modes[3]
   outfpcaYhat <- array(NA, dim=tnsr@modes)
   
@@ -182,12 +174,6 @@ fpca_res <- function(tnsr, smooth_tnsr, true_L, npc=NULL, pve=0.99, center=TRUE)
       outfpcaYhat[,j,i] <- outfpca[[j]]$Yhat[i,] # yhat is the estimated, smoothed curve, with missing data imputed
     }
   }
-  
-  # for (i in 1:p){
-  #   outfpcaYhat[,1,i] <- outfpca1$Yhat[i,]
-  #   outfpcaYhat[,2,i] <- outfpca2$Yhat[i,]
-  #   outfpcaYhat[,3,i] <- outfpca3$Yhat[i,]
-  # }
   
   # Calculate loss of M
   loss_M <- sum((outfpcaYhat - smooth_tnsr@data)^2)/length(outfpcaYhat)
@@ -205,17 +191,6 @@ fpca_res <- function(tnsr, smooth_tnsr, true_L, npc=NULL, pve=0.99, center=TRUE)
   
   Lfpca_avg <- Reduce("+", Lfpca) / length(Lfpca)
   Lfpca_avg <- qr.Q(qr(Lfpca_avg))
-  
-  # Lfpca1 <- outfpca1$efunctions[,1:min_col]
-  # Lfpca2 <- outfpca2$efunctions[,1:min_col]
-  # Lfpca3 <- outfpca3$efunctions[,1:min_col]
-  
-  # Lfpca1 <- qr.Q(qr(Lfpca1))
-  # Lfpca2 <- qr.Q(qr(Lfpca2))
-  # Lfpca3 <- qr.Q(qr(Lfpca3))
-  # 
-  # Lfpca <- (Lfpca1 + Lfpca2 + Lfpca3)/3
-  # Lfpca <- qr.Q(qr(Lfpca))
   
   loss_L <- sqrt(0.5*sum((true_L %*% t(true_L) - Lfpca_avg %*% t(Lfpca_avg))^2))
   
