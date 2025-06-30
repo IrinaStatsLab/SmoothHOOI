@@ -1,0 +1,79 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# SmoothHOOI
+
+<!-- badges: start -->
+
+<!-- badges: end -->
+
+SmoothHOOI is an R package that implements methods described in ''Smooth Tensor Decomposition with Application to Ambulatory Blood Pressure Monitoring Data''
+
+## Installation
+
+You can install the development version of SmoothHOOI from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("IrinaStatsLab/SmoothHOOI")
+```
+
+## Example
+
+This is a simple example which shows you how to use this package on a synthetic dataset.
+
+```{r}
+library(SmoothHOOI)
+
+# generate a 24*3*207 three-way tensor to mimic ABPM data
+data("synthetic_raw") # load L, G, R, and residuals generated from the real HYPNOS ABPM data
+
+synthetic <- synthetic_data(synthetic_raw$L_tilde, synthetic_raw$R_tilde, synthetic_raw$mean_G, synthetic_raw$cov_G, synthetic_raw$E, p=207, noise_level=1, pattern="random", percent=0.2)
+
+ground_truth <- synthetic$sim_Msmooth # ground truth smooth data
+synthetic_dat <- synthetic$sim_Mmiss # noisy, incomplete data
+```
+
+```{r}
+# Make the second order difference matrix 
+D2 <- SecDiffMat(24)
+```
+
+```{r}
+# Find optimal hyperparameter with 5-fold cross-validation
+set.seed(32123)
+
+kcv_res <- kcv(tnsr=synthetic_dat@data, rank_grid=as.matrix(expand.grid(r1<-seq(3,6,by=1), r2<-c(2,3))), lambda_seq=seq(1,20,by=1), k=5, L0=NULL, D=D2, tol=0.01, max_iter=500, init=0)
+
+kcv_res$MSE_mat # matrix for CV error (rows representing ranks, cols representing lambda)
+kcv_res$opt_para # optimal hyperparameters
+```
+
+```{r}
+# Run SmoothHOOI algorithm with the optimal hyperparameters
+res <- mglram(tnsr = synthetic_dat@data, ranks = c(3, 2), init=0, D = D2,
+       lambda = 5, max_iter = 500, tol = 1e-5, L0 = NULL)
+
+res$conv # check convergence
+```
+
+```{r}
+# Rotation for Identifiability
+tilde <- MakeIdent(L=res$L, G=res$G, R=res$R)
+
+tilde$L_tilde
+tilde$R_tilde
+tilde$G_tilde[ , ,1]
+```

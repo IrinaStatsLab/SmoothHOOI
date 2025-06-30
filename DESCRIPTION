@@ -9,7 +9,7 @@ Description: More about what it does (maybe more than one line).
 License: GPL (>= 2)
 Suggests: tinytest
 Encoding: UTF-8
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Imports: 
     MASS,
     Rcpp (>= 1.0.14),
