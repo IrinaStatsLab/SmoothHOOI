@@ -55,7 +55,7 @@ D2 <- SecDiffMat(24)
 
 ```{r}
 # Find optimal hyperparameter with 5-fold cross-validation
-kcv_res <- kcv(tnsr, rank_grid=as.matrix(expand.grid(r1<-seq(3,6,by=1), r2<-c(2,3))), lambda_seq=seq(1,20,by=1), k=5, L0=NULL, D=D2, tol=0.01, max_iter=500, init=0)
+kcv_res <- kcv(tnsr, rank_grid=as.matrix(expand.grid(r1<-seq(3,4,by=1), r2<-c(2,3))), lambda_seq=seq(1,10,by=1), k=5, L0=NULL, D=D2, tol=0.01, max_iter=500, init=0)
 
 kcv_res$MSE_mat # matrix for CV error (rows representing ranks, cols representing lambda)
 kcv_res$opt_para # optimal hyperparameters
