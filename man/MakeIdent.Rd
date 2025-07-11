@@ -62,7 +62,7 @@ Leyuan Qian
   
   # Identifiability Corrected results
   tilde$L_tilde 
-  tilde$G_tilde
+  tilde$G_tilde[ , , 1]
   tilde$R_tilde
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the

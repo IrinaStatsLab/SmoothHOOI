@@ -81,8 +81,8 @@ Leyuan Qian
   
   synthetic <- synthetic_data(L, R, mean_G, cov_G, E, p = 207, noise_level = 1, pattern = "random", percent = 0.2)
   
-  synthetic$sim_Msmooth[ , , 1] # ground truth smooth data, showing the first frontal slice
-  synthetic$sim_Mmiss[ , ,1] # noisy, incomplete data, showing the first frontal slice
+  (synthetic$sim_Msmooth)@data[ , , 1] # ground truth smooth data, showing the first frontal slice
+  (synthetic$sim_Mmiss)@data[ , ,1] # noisy, incomplete data, showing the first frontal slice
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
