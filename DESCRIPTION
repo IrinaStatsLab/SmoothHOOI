@@ -1,11 +1,11 @@
 Package: SmoothHOOI
 Type: Package
-Title: Concise Summary of What the Package Does
+Title: SmoothHOOI Algorithm Implementation
 Version: 1.0
 Date: 2025-04-25
-Authors@R: person("Your", "Name", role = c("aut", "cre"), email =
-        "your@email.com")
-Description: More about what it does (maybe more than one line).
+Authors@R: person("Leyuan", "Qian", role = c("aut", "cre"), email =
+        "lyqian@umich.edu")
+Description: This package provides functions for the implementation of the SmoothHOOI algorithm. It also contains functions that were used in simulation studies discussed in the paper "Smooth tensor decomposition with application to ambulatory blood pressure monitoring data". 
 License: GPL (>= 2)
 Suggests: tinytest
 Encoding: UTF-8

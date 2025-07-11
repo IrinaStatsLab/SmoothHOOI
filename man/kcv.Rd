@@ -66,9 +66,32 @@ Leyuan Qian
 %\seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 %}
-%\examples{
-
-%}
+\examples{
+  # generate a random array with missing data
+  dims <- c(24, 3, 20)
+  set.seed(123) 
+  tnsr <- array(rnorm(prod(dims), mean = 0, sd = 1), dim = dims)
+  
+  missing_prob <- 0.2
+  missing_indices <- sample(length(tnsr), size = floor(length(tnsr) * missing_prob))
+  tnsr[missing_indices] <- NA
+  
+  # generate a second order difference matrix with circular nature 
+  # (can actually use SecDiffMat() function provided by this package)
+  D2<-diag(2,24,24)
+  D2[row(D2) == col(D2) - 1] <- -1
+  D2[row(D2) == col(D2) + 1] <- -1
+  D2[24,1] <- -1
+  D2[1,24] <- -1
+  
+  # Run 5-fold cross-validation
+  kcv_res <- kcv(tnsr, rank_grid=as.matrix(expand.grid(r1<-c(3), r2<-c(2))), 
+                        lambda_seq=seq(2,3,by=1), 
+                        k=5, L0=NULL, D=D2, tol=0.01, max_iter=500, init=0)
+  
+  kcv_res$MSE_mat # matrix of CV error
+  kcv_res$opt_para # optimal hyperparameters
+}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
 % \keyword{ ~kwd1 }

@@ -64,9 +64,20 @@ Leyuan Qian
 %\seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 %}
-%\examples{
-
-%}
+\examples{
+  set.seed(1234321)
+  
+  # Generate random L, G, R, E (does not have specific meaning, just for example) 
+  L <- matrix(rnorm(24 * 3), nrow = 24, ncol = 3) # L is 24 * 3
+  G <- array(rnorm(3 * 2 * 207), dim = c(3, 2, 207)) # G is 24 * 3 * 207
+  R <- matrix(rnorm(3 * 2), nrow = 3, ncol = 2) # R is 3 * 2
+  E <- array(rnorm(24 * 3 * 207), dim = c(24, 3, 207)) # E is 24 * 3 * 207
+  
+  synthetic <- simdata_generator(L, G, R, E, p = 207, noise_level = 1, pattern="random", percent = 0.2)
+  
+  synthetic$sim_Msmooth[ , , 1] # ground truth smooth data, showing the first frontal slice
+  synthetic$sim_Mmiss[ , ,1] # noisy, incomplete data, showing the first frontal slice
+}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
 % \keyword{ ~kwd1 }

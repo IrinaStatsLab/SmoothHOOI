@@ -50,9 +50,21 @@ Leyuan Qian
 %\seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 %}
-%\examples{
-
-%}
+\examples{
+  set.seed(1234321)
+  
+  # Generate random L, G, R (does not have specific features like orthogonality, just for example) 
+  L <- matrix(rnorm(24 * 3), nrow = 24, ncol = 3) # L is 24 * 3
+  G <- array(rnorm(3 * 2 * 207), dim = c(3, 2, 207)) # G is 3 * 2 * 207
+  R <- matrix(rnorm(3 * 2), nrow = 3, ncol = 2) # R is 3 * 2
+  
+  tilde <- MakeIdent(L, G, R)
+  
+  # Identifiability Corrected results
+  tilde$L_tilde 
+  tilde$G_tilde
+  tilde$R_tilde
+}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
 % \keyword{ ~kwd1 }

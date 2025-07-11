@@ -68,7 +68,7 @@ Leyuan Qian
 %%}
 \examples{
 # generate a random array with missing data
-dims <- c(24, 3, 20)
+dims <- c(24, 3, 207)
 set.seed(123) 
 tnsr <- array(rnorm(prod(dims), mean = 0, sd = 1), dim = dims)
 
@@ -77,6 +77,7 @@ missing_indices <- sample(length(tnsr), size = floor(length(tnsr) * missing_prob
 tnsr[missing_indices] <- NA
 
 # generate a second order difference matrix with circular nature
+# (can actually use SecDiffMat() function provided by this package)
 D2<-diag(2,24,24)
 D2[row(D2) == col(D2) - 1] <- -1
 D2[row(D2) == col(D2) + 1] <- -1

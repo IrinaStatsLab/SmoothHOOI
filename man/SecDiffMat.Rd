@@ -41,9 +41,11 @@ Leyuan Qian
 %\seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 %}
-%\examples{
-
-%}
+\examples{
+  SecDiffMat(24)
+  
+  SecDiffMat(10)
+}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
 % \keyword{ ~kwd1 }
