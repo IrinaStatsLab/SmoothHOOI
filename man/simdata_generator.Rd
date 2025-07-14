@@ -5,7 +5,7 @@
 Generation of simulated data 
 }
 \description{
-Generate simulated data when the following data are available. Can also define sample size (p), noise level, missing pattern, and missing rate.  
+Generate simulated ABPM data of 24(hours)*3(DBP, SBP, HR)*p(sample size) when the following information is available. Can define sample size (p), noise level, missing pattern, and missing rate.  
 }
 \usage{
 simdata_generator(L, G, R, E, p, noise_level, pattern, percent)
