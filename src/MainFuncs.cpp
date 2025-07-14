@@ -340,6 +340,7 @@ arma::mat LambdaSeqFit(const arma::cube& tnsr, const arma::vec& ranks, const arm
     arma::cube est = Rcpp::as<arma::cube>(res["est"]);
     arma::mat L = Rcpp::as<arma::mat>(res["L"]);
     L0_update = L; // warm-start the next iteration with the L in this iteration
+    arma::cube tnsr = Rcpp::as<arma::cube>(res["filled_tnsr"]); // warm-start the next iteration with imputed data 
     arma::vec vec_tnsr = arma::vectorise(est); // vectorize the tensor
     vectorized_tnsrs.col(i) = vec_tnsr;
 
