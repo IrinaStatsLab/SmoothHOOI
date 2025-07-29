@@ -9,7 +9,7 @@
 
 SmoothHOOI is an R package that implements methods described in “Smooth
 Tensor Decomposition with Application to Ambulatory Blood Pressure
-Monitoring Data”. The application to real and synthetic ABPM data can be
+Monitoring Data” [[arxiv](https://arxiv.org/abs/2507.11723)]. The application to real and synthetic ABPM data can be
 found
 [here](https://github.com/IrinaStatsLab/SmoothTensorDecompositionABPM).
 
