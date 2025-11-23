@@ -16,3 +16,6 @@ Imports:
     refund,
     rTensor
 LinkingTo: Rcpp, RcppArmadillo
+RemoteType: local
+RemotePkgRef: local::~/Desktop/ABPM/SmoothHOOI
+RemoteUrl: /Users/vickyqian/Desktop/ABPM/SmoothHOOI

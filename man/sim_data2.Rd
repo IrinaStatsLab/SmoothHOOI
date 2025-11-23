@@ -1,5 +1,5 @@
-\name{synthetic_data}
-\alias{synthetic_data}
+\name{sim_data2}
+\alias{sim_data2}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 Generation of simulated data
@@ -8,7 +8,7 @@ Generation of simulated data
 Generate simulated ABPM data of 24(hours)*3(DBP, SBP, HR)*p(sample size) when the following information is available. Can define sample size (p), noise level, missing pattern, and missing rate.  
 }
 \usage{
-synthetic_data(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent)
+sim_data2(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent, lower, upper)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -38,6 +38,12 @@ synthetic_data(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent)
 }
   \item{percent}{
   Percent of data to be set to missing, if pattern = "random". Should be a number in [0,1).
+}
+ \item{lower}{
+  Minimum number of rows to be masked, if pattern = "structured".
+}
+  \item{upper}{
+  Maximum number of rows to be masked, if pattern = "structured".
 }
 }
 \details{
@@ -79,7 +85,7 @@ Leyuan Qian
   cov_G <- cov(G_mat) # cov_G is a covariance matrix of G scores
   E <- array(rnorm(24 * 3 * 207), dim = c(24, 3, 207)) # E is 24 * 3 * 207
   
-  synthetic <- synthetic_data(L, R, mean_G, cov_G, E, p = 207, noise_level = 1, pattern = "random", percent = 0.2)
+  synthetic <- sim_data2(L, R, mean_G, cov_G, E, p = 207, noise_level = 1, pattern = "random", percent = 0.2)
   
   (synthetic$sim_Msmooth)@data[ , , 1] # ground truth smooth data, showing the first frontal slice
   (synthetic$sim_Mmiss)@data[ , ,1] # noisy, incomplete data, showing the first frontal slice

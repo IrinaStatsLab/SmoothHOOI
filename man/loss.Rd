@@ -8,7 +8,7 @@ Calculation of losses of M and L
 Compare the original data and its reconstruction with calculation of losses of M and L
 }
 \usage{
-loss(tnsr, smooth_tnsr, L, true_L, R, true_R)
+loss(tnsr, smooth_tnsr, L, true_L)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -24,12 +24,6 @@ loss(tnsr, smooth_tnsr, L, true_L, R, true_R)
   \item{true_L}{
   Ground-truth L matrix.
 }
-  \item{R}{
-  Estimated R matrix. 
-}
-  \item{true_R}{
-  Ground-truth R matrix.
-}
 }
 %\details{
 %%  ~~ If necessary, more details than the description above ~~
@@ -39,7 +33,6 @@ loss(tnsr, smooth_tnsr, L, true_L, R, true_R)
 %%  If it is a LIST, use
 \item{loss_M}{Losses in the reconstruction of M}
 \item{loss_L}{Losses in the reconstruction of L}
-\item{loss_R}{Losses in the reconstruction of R}
 %% ...
 }
 %\references{

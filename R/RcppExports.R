@@ -13,7 +13,7 @@ kcv <- function(tnsr, rank_grid, lambda_seq, k, L0_, D, tol = 0.1, max_iter = 50
     .Call(`_SmoothHOOI_kcv`, tnsr, rank_grid, lambda_seq, k, L0_, D, tol, max_iter, init)
 }
 
-loss <- function(tnsr, smooth_tnsr, L, true_L, R, true_R) {
-    .Call(`_SmoothHOOI_loss`, tnsr, smooth_tnsr, L, true_L, R, true_R)
+loss <- function(tnsr, smooth_tnsr, L, true_L) {
+    .Call(`_SmoothHOOI_loss`, tnsr, smooth_tnsr, L, true_L)
 }
 

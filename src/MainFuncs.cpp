@@ -466,8 +466,7 @@ Rcpp::List kcv(const arma::cube& tnsr, const arma::mat& rank_grid, const arma::v
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr, 
-                const arma::mat& L, const arma::mat& true_L, 
-                const arma::mat& R, const arma::mat& true_R){
+                const arma::mat& L, const arma::mat& true_L){
   int n = tnsr.n_elem;
   
   // MSE for loss of M 
@@ -478,13 +477,9 @@ Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr,
   arma::mat diff_L = true_L * true_L.t() - L * L.t();
   double loss_L = std::pow(0.5, 0.5) * std::pow(arma::accu(diff_L % diff_L), 0.5); 
   
-  arma::mat diff_R = true_R * true_R.t() - R * R.t();
-  double loss_R = std::pow(0.5, 0.5) * std::pow(arma::accu(diff_R % diff_R), 0.5);
-  
   return Rcpp::List::create(
     Rcpp::Named("loss_M") = loss_M,
-    Rcpp::Named("loss_L") = loss_L,
-    Rcpp::Named("loss_R") = loss_R
+    Rcpp::Named("loss_L") = loss_L
   );
 }
 
