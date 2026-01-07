@@ -6,14 +6,13 @@ Date: 2025-04-25
 Authors@R: person("Leyuan", "Qian", role = c("aut", "cre"), email =
         "lyqian@umich.edu")
 Description: This package provides functions for the implementation of the SmoothHOOI algorithm. It also contains functions that were used in simulation studies discussed in the paper "Smooth tensor decomposition with application to ambulatory blood pressure monitoring data". 
-License: GPL (>= 2)
-Suggests: tinytest
+License: GPL-3 + file LICENSE
+Suggests: tinytest, refund
 Encoding: UTF-8
 RoxygenNote: 7.3.2
 Imports: 
     MASS,
     Rcpp (>= 1.0.14),
-    refund,
     rTensor
 LinkingTo: Rcpp, RcppArmadillo
 RemoteType: local

@@ -83,34 +83,38 @@ SecDiffMat <- function(dim){
 # percent: percent of data to be masked, if pattern = "random"
 # lower, upper: range of number of timepoints to be masked, if pattern = "structured"
 sim_data1 <- function(L, G, R, E, p, noise_level, pattern, percent, lower, upper){
-  G_mat <- cbind(G[1,1,], G[1,2,],
-                 G[2,1,], G[2,2,],
-                 G[3,1,], G[3,2,])
+  r1 <- ncol(L)
+  r2 <- ncol(R)
+  
+  a <- nrow(L)
+  b <- nrow(R)
+  
+  G_mat <- matrix(aperm(G, c(3, 2, 1)), nrow = dim(G)[3])
 
   mean_G <- colMeans(G_mat)
-  cov_G <- cov(G_mat)
+  cov_G <- stats::cov(G_mat)
 
-  error_sd <- sd(E, na.rm=T)
+  error_sd <- stats::sd(E, na.rm=T)
 
   # simulate core tensor G
-  sim_G <- array(NA, dim=c(3, 2, p))
+  sim_G <- array(NA, dim=c(r1, r2, p))
   for (i in 1:p){
     sim <- MASS::mvrnorm(n = 1, mu = mean_G, Sigma = cov_G)
-    sim_G[,,i] <- matrix(sim, nrow=3, byrow=TRUE)
+    sim_G[,,i] <- matrix(sim, nrow = r1, byrow = TRUE)
   }
 
   # make a smooth, complete data
   sim_Msmooth <- rTensor::ttl(rTensor::as.tensor(sim_G), list_mat=list(L, R), ms=c(1,2))
 
   # add error (noise) to the smooth, complete data
-  error_array <- array(rnorm(24*3*p, mean=0, sd=error_sd*noise_level), dim=c(24,3,p))
+  error_array <- array(stats::rnorm(a*b*p, mean=0, sd=error_sd*noise_level), dim=c(a,b,p))
   sim_Mnoise <- rTensor::as.tensor(sim_Msmooth@data + error_array)
 
   # mask the noisy data
   if (pattern=="random"){
     sim_Mmiss <- .mask1(sim_Mnoise, percent = percent)
   } else if (pattern=="structured"){
-    sim_Mmiss <- .mask4(sim_Mnoise, lower = 0, upper = 20)
+    sim_Mmiss <- .mask4(sim_Mnoise, lower = lower, upper = upper)
   }
 
   out=list(sim_Msmooth=sim_Msmooth, sim_Mmiss=sim_Mmiss)
@@ -134,20 +138,20 @@ sim_data2 <- function(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent, 
   a <- nrow(L)
   b <- nrow(R)
   
-  error_sd <- sd(E, na.rm=T)
+  error_sd <- stats::sd(E, na.rm=T)
   
   # simulate core tensor G
   sim_G <- array(NA, dim=c(r1, r2, p))
   for (i in 1:p){
     sim <- MASS::mvrnorm(n = 1, mu = mean_G, Sigma = cov_G)
-    sim_G[,,i] <- matrix(sim, nrow=3, byrow=TRUE)
+    sim_G[,,i] <- matrix(sim, nrow = r1, byrow = TRUE)
   }
   
   # make a smooth, complete data 
   sim_Msmooth <- rTensor::ttl(rTensor::as.tensor(sim_G), list_mat=list(L, R), ms=c(1,2))
   
   # add error (noise) to the smooth, complete data 
-  error_array <- array(rnorm(a*b*p, mean=0, sd=error_sd*noise_level), dim=c(a,b,p))
+  error_array <- array(stats::rnorm(a*b*p, mean=0, sd=error_sd*noise_level), dim=c(a,b,p))
   sim_Mnoise <- rTensor::as.tensor(sim_Msmooth@data + error_array)
   
   # mask the noisy data
