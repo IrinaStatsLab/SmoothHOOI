@@ -461,12 +461,12 @@ Rcpp::List kcv(const arma::cube& tnsr, const arma::mat& rank_grid, const arma::v
 // loss: a function to calculate loss of M and loss of L given ground truth and estimation
 // tnsr: estimation given by LGR^T
 // smooth_tnsr: smooth underlying data without missing data
-// L, R: estimated L and R
-// true_L, true_R: ground truth of L and R 
+// L: estimated L 
+// true_L: ground truth of L 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr, 
-                const arma::mat& L, const arma::mat& true_L){
+                Rcpp::Nullable<arma::mat> L = R_NilValue, Rcpp::Nullable<arma::mat> true_L = R_NilValue){
   int n = tnsr.n_elem;
   
   // MSE for loss of M 
@@ -474,8 +474,15 @@ Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr,
   double loss_M = arma::accu(diff_M % diff_M) / n;
   
   // chordal distance for loss of L
-  arma::mat diff_L = true_L * true_L.t() - L * L.t();
-  double loss_L = std::pow(0.5, 0.5) * std::pow(arma::accu(diff_L % diff_L), 0.5); 
+  double loss_L = NA_REAL;
+  
+  if (L.isNotNull() && true_L.isNotNull()) {
+    arma::mat L_mat      = Rcpp::as<arma::mat>(L);
+    arma::mat true_L_mat = Rcpp::as<arma::mat>(true_L);
+    
+    arma::mat diff_L = true_L_mat * true_L_mat.t() - L_mat * L_mat.t();
+    loss_L = std::sqrt(0.5) * std::sqrt(arma::accu(diff_L % diff_L));
+  }
   
   return Rcpp::List::create(
     Rcpp::Named("loss_M") = loss_M,
