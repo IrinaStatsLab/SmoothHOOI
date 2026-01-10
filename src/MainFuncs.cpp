@@ -123,7 +123,7 @@ Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     arma::mat eigvec_cal_L;
     arma::eig_sym(eigval_cal_L, eigvec_cal_L, cal_L);
     arma::uvec indices_L = arma::sort_index(eigval_cal_L, "descend");
-    eigvec_cal_L = eigvec_cal_L.cols(indices_U);
+    eigvec_cal_L = eigvec_cal_L.cols(indices_L);
     L = eigvec_cal_L.head_cols(r1);
     
     // alternative way to recover L: QR decomposition 
@@ -138,9 +138,11 @@ Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
       
       arma::mat LTMR = L.t() * M_i * R;
       arma::mat prior_term = arma::eye(r1, r1) + lambda * (L.t() * D.t() * D * L);
-      arma::mat prior_term_inv = arma::inv(prior_term);
+      // arma::mat prior_term_inv = arma::inv(prior_term);
+      // G.slice(i) = prior_term_inv * LTMR; // calculate G from L, M, and R
       
-      G.slice(i) = prior_term_inv * LTMR; // calculate G from L, M, and R
+      G.slice(i) = arma::solve(prior_term, LTMR);
+      
       est.slice(i) = L * G.slice(i) * R.t(); // calculate estimation LGR^T 
       
       arma::mat term1 = M_i - est.slice(i); // first term of objective function 
@@ -167,7 +169,7 @@ Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     Rcpp::Named("G") = G,
     Rcpp::Named("est") = est,
     Rcpp::Named("conv") = converged,
-    Rcpp::Named("obj_func") = obj_func.subvec(0, curr_iter - 1)
+    Rcpp::Named("obj_func") = (curr_iter > 0) ? obj_func.subvec(0, curr_iter - 1) : obj_func.head(1)
   );
 }
 
@@ -261,7 +263,7 @@ Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     Rcpp::Named("est") = est,
     Rcpp::Named("filled_tnsr") = filled_tnsr,
     Rcpp::Named("conv") = converged,
-    Rcpp::Named("obj_func") = obj_func.subvec(0, curr_iter - 1)
+    Rcpp::Named("obj_func") = (curr_iter > 0) ? obj_func.subvec(0, curr_iter - 1) : obj_func.head(1)
   );
 }
 
