@@ -468,7 +468,8 @@ Rcpp::List kcv(const arma::cube& tnsr, const arma::mat& rank_grid, const arma::v
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr, 
-                Rcpp::Nullable<arma::mat> L = R_NilValue, Rcpp::Nullable<arma::mat> true_L = R_NilValue){
+                Rcpp::Nullable<arma::mat> L = R_NilValue, Rcpp::Nullable<arma::mat> true_L = R_NilValue,
+                Rcpp::Nullable<arma::mat> R = R_NilValue, Rcpp::Nullable<arma::mat> true_R = R_NilValue){
   int n = tnsr.n_elem;
   
   // MSE for loss of M 
@@ -486,9 +487,21 @@ Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr,
     loss_L = std::sqrt(0.5) * std::sqrt(arma::accu(diff_L % diff_L));
   }
   
+  // chordal distance for loss of R
+  double loss_R = NA_REAL;
+  
+  if (R.isNotNull() && true_R.isNotNull()) {
+    arma::mat R_mat      = Rcpp::as<arma::mat>(R);
+    arma::mat true_R_mat = Rcpp::as<arma::mat>(true_R);
+    
+    arma::mat diff_R = true_R_mat * true_R_mat.t() - R_mat * R_mat.t();
+    loss_R = std::sqrt(0.5) * std::sqrt(arma::accu(diff_R % diff_R));
+  }
+  
   return Rcpp::List::create(
     Rcpp::Named("loss_M") = loss_M,
-    Rcpp::Named("loss_L") = loss_L
+    Rcpp::Named("loss_L") = loss_L,
+    Rcpp::Named("loss_R") = loss_R
   );
 }
 

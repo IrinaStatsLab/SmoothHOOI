@@ -68,8 +68,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // loss
-Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr, Rcpp::Nullable<arma::mat> L, Rcpp::Nullable<arma::mat> true_L);
-RcppExport SEXP _SmoothHOOI_loss(SEXP tnsrSEXP, SEXP smooth_tnsrSEXP, SEXP LSEXP, SEXP true_LSEXP) {
+Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr, Rcpp::Nullable<arma::mat> L, Rcpp::Nullable<arma::mat> true_L, Rcpp::Nullable<arma::mat> R, Rcpp::Nullable<arma::mat> true_R);
+RcppExport SEXP _SmoothHOOI_loss(SEXP tnsrSEXP, SEXP smooth_tnsrSEXP, SEXP LSEXP, SEXP true_LSEXP, SEXP RSEXP, SEXP true_RSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -77,7 +77,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::cube& >::type smooth_tnsr(smooth_tnsrSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type L(LSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type true_L(true_LSEXP);
-    rcpp_result_gen = Rcpp::wrap(loss(tnsr, smooth_tnsr, L, true_L));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type R(RSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type true_R(true_RSEXP);
+    rcpp_result_gen = Rcpp::wrap(loss(tnsr, smooth_tnsr, L, true_L, R, true_R));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -86,7 +88,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_SmoothHOOI_mglram", (DL_FUNC) &_SmoothHOOI_mglram, 8},
     {"_SmoothHOOI_oracle", (DL_FUNC) &_SmoothHOOI_oracle, 9},
     {"_SmoothHOOI_kcv", (DL_FUNC) &_SmoothHOOI_kcv, 9},
-    {"_SmoothHOOI_loss", (DL_FUNC) &_SmoothHOOI_loss, 4},
+    {"_SmoothHOOI_loss", (DL_FUNC) &_SmoothHOOI_loss, 6},
     {NULL, NULL, 0}
 };
 

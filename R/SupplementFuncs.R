@@ -107,7 +107,7 @@ sim_data1 <- function(L, G, R, E, p, noise_level, pattern, percent, lower, upper
   sim_Msmooth <- rTensor::ttl(rTensor::as.tensor(sim_G), list_mat=list(L, R), ms=c(1,2))
 
   # add error (noise) to the smooth, complete data
-  error_array <- array(stats::rnorm(a*b*p, mean=0, sd=error_sd*noise_level), dim=c(a,b,p))
+  error_array <- array(stats::rnorm(a*b*p, mean=0, sd=error_sd*sqrt(noise_level)), dim=c(a,b,p))
   sim_Mnoise <- rTensor::as.tensor(sim_Msmooth@data + error_array)
 
   # mask the noisy data
@@ -151,7 +151,7 @@ sim_data2 <- function(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent, 
   sim_Msmooth <- rTensor::ttl(rTensor::as.tensor(sim_G), list_mat=list(L, R), ms=c(1,2))
   
   # add error (noise) to the smooth, complete data 
-  error_array <- array(stats::rnorm(a*b*p, mean=0, sd=error_sd*noise_level), dim=c(a,b,p))
+  error_array <- array(stats::rnorm(a*b*p, mean=0, sd=error_sd*sqrt(noise_level)), dim=c(a,b,p))
   sim_Mnoise <- rTensor::as.tensor(sim_Msmooth@data + error_array)
   
   # mask the noisy data
@@ -162,6 +162,48 @@ sim_data2 <- function(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent, 
   }
   
   out=list(sim_Msmooth=sim_Msmooth, sim_Mnoise=sim_Mnoise, sim_Mmiss=sim_Mmiss)
+}
+
+# Generate synthetic tensor data with smoothness in the 1st mode
+# returnR matrix and core tensor G, the smooth, complete underlying data, and the noisy, incomplete data
+# L: Known matrix with smooth (temporal) principal components as its columns
+# a: dimension of the 1st mode
+# r1: decomposition rank for the 1st mode
+# b: number of variables (e.g., 3 for ABPM data)
+# r2: decomposition rank for the 2nd mode
+# p: number of samples (e.g. patients in ABPM data)
+# noise_sd: sample noise from rnorm with mean=0, sd=noise
+# noise_level: >=0, adjust noise to be sampled from rnorm with mean=0, sd=sqrt(noise_level)*noise
+# pattern: "random" or "structured"
+# percent: percent of data to be masked, if pattern = "random"
+# lower, upper: range of number of timepoints to be masked, if pattern = "structured"
+sim_data3 <- function(L, b, r2, p, noise_sd, noise_level, pattern, percent, lower, upper) {
+  a <- nrow(L)
+  r1 <- ncol(L)
+  
+  # generate R using normal matrix and SVD 
+  norm_mat_R <- matrix(stats::rnorm(b * r2, mean = 0, sd = 1), nrow = b, ncol = r2)
+  R <- svd(norm_mat_R)$u[, 1:r2]
+  
+  # generate core tensor G from normal distribution
+  G <- array(rnorm(r1 * r2 * p, mean = 0, sd = 1), dim = c(r1, r2, p))
+  
+  # make a smooth, complete tensor data 
+  sim_Msmooth <- rTensor::ttl(rTensor::as.tensor(G), list_mat=list(L, R), ms=c(1,2))
+  
+  # add noise to the smooth, complete data
+  error_array <- array(stats::rnorm(a * b * p, mean = 0, sd= noise_sd * sqrt(noise_level)), dim=c(a, b, p))
+  sim_Mnoise <- rTensor::as.tensor(sim_Msmooth@data + error_array)
+  
+  # mask the noisy data
+  if (pattern=="random"){
+    sim_Mmiss <- .mask1(sim_Mnoise, percent = percent)
+  } else if (pattern=="structured"){
+    sim_Mmiss <- .mask4(sim_Mnoise, lower = lower, upper = upper)
+  }
+  
+  out=list(sim_Msmooth=sim_Msmooth, sim_Mnoise=sim_Mnoise, sim_Mmiss=sim_Mmiss, sim_R = R, sim_G = G)
+  
 }
 
 # Run FPCA and return the losses 
