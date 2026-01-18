@@ -4,35 +4,46 @@ using namespace Rcpp;
 // init_L: Initialize the L matrix
 // tnsr: tensor data, but in the array form (in R, tnsr@data)
 // r1: the rank to compress the 1st mode to
+// arma::mat init_L(const arma::cube& tnsr, int r1) {
+//   int a = tnsr.n_rows; // original dimension of mode 1
+//   int b = tnsr.n_cols; // original dimension of mode 2 
+//   int n = tnsr.n_slices; // original dimension of mode 3
+//   
+//   if (!tnsr.has_nan()){ 
+//     // If tnsr is complete, use SVD to initialize L
+//     arma::mat U_mean = arma::zeros<arma::mat>(a, a); // store the U matrices from SVD
+//     
+//     for (int i = 0; i < n; i++) {
+//       arma::mat U, V;
+//       arma::vec s;
+//       
+//       arma::svd(U, s, V, tnsr.slice(i)); // SVD for each slice
+//       
+//       U_mean += U; 
+//     }
+//     
+//     U_mean /= n; // Calculate the mean of U matrices from all the slices
+//     
+//     return U_mean.cols(0,r1-1); // Let L be the top r1 columns of U
+//     
+//   } else {
+//     // If tnsr is not complete, initialize L with (I_{r1}, 0)^T
+//     arma::mat L0(a, r1, arma::fill::zeros);  
+//     L0.submat(0, 0, r1 - 1, r1 - 1) = arma::eye(r1, r1);  
+//     return L0;
+//     
+//   }
+// }
+
 arma::mat init_L(const arma::cube& tnsr, int r1) {
   int a = tnsr.n_rows; // original dimension of mode 1
   int b = tnsr.n_cols; // original dimension of mode 2 
   int n = tnsr.n_slices; // original dimension of mode 3
   
-  if (!tnsr.has_nan()){ 
-    // If tnsr is complete, use SVD to initialize L
-    arma::mat U_mean = arma::zeros<arma::mat>(a, a); // store the U matrices from SVD
+  arma::mat L0(a, r1, arma::fill::zeros);  
+  L0.submat(0, 0, r1 - 1, r1 - 1) = arma::eye(r1, r1);  
+  return L0;
     
-    for (int i = 0; i < n; i++) {
-      arma::mat U, V;
-      arma::vec s;
-      
-      arma::svd(U, s, V, tnsr.slice(i)); // SVD for each slice
-      
-      U_mean += U; 
-    }
-    
-    U_mean /= n; // Calculate the mean of U matrices from all the slices
-    
-    return U_mean.cols(0,r1-1); // Let L be the top r1 columns of U
-    
-  } else {
-    // If tnsr is not complete, initialize L with (I_{r1}, 0)^T
-    arma::mat L0(a, r1, arma::fill::zeros);  
-    L0.submat(0, 0, r1 - 1, r1 - 1) = arma::eye(r1, r1);  
-    return L0;
-    
-  }
 }
 
 // ImputeTnsr_cpp: Impute the missing values in a tensor with a certain number
@@ -347,68 +358,34 @@ arma::vec grouping(const arma::cube& tnsr, int k){
 // max_iter: maximum number of iterations
 // init: a numeric value to impute the missing data at the beginning
 
-// arma::mat LambdaSeqFit(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq,
-//                        Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter, double init){
-//   int n_lambda = lambda_seq.n_elem;
-// 
-//   int a = tnsr.n_rows;
-//   int b = tnsr.n_cols;
-//   int n = tnsr.n_slices;
-// 
-//   int r1 = ranks(0);
-//   arma::mat L0_update = init_L(tnsr, r1);
-// 
-//   arma::mat vectorized_tnsrs(a*b*n, n_lambda, arma::fill::zeros);
-//   
-//   // run the algorithm with i-th lambda
-//   for (int i = 0; i < n_lambda; i++){
-//     double lambda_i = lambda_seq(i);
-//     Rcpp::List res = mglram(tnsr, ranks, lambda_i, Rcpp::wrap(L0_update), D, tol, max_iter, init); 
-//     arma::cube est = Rcpp::as<arma::cube>(res["est"]);
-//     arma::mat L = Rcpp::as<arma::mat>(res["L"]);
-//     L0_update = L; // warm-start the next iteration with the L in this iteration
-//     arma::cube tnsr = Rcpp::as<arma::cube>(res["filled_tnsr"]); // warm-start the next iteration with imputed data 
-//     arma::vec vec_tnsr = arma::vectorise(est); // vectorize the tensor
-//     vectorized_tnsrs.col(i) = vec_tnsr;
-// 
-//   }
-//   return vectorized_tnsrs;
-// }
-
-arma::vec LambdaSeqFit_Optimized(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq,
-                                 const arma::uvec& masked_idx, const arma::vec& masked_values,
-                                 Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, 
-                                 double tol, int max_iter, double init) {
+arma::mat LambdaSeqFit(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq,
+                       Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter, double init){
   int n_lambda = lambda_seq.n_elem;
+
+  int a = tnsr.n_rows;
+  int b = tnsr.n_cols;
+  int n = tnsr.n_slices;
+
   int r1 = ranks(0);
-  
   arma::mat L0_update = init_L(tnsr, r1);
-  arma::cube working_tnsr = tnsr; 
-  
-  arma::vec mse_results(n_lambda, arma::fill::zeros);
-  
-  for (int i = 0; i < n_lambda; i++) {
+
+  arma::mat vectorized_tnsrs(a*b*n, n_lambda, arma::fill::zeros);
+
+  // run the algorithm with i-th lambda
+  for (int i = 0; i < n_lambda; i++){
     double lambda_i = lambda_seq(i);
-    
-    Rcpp::List res = mglram(working_tnsr, ranks, lambda_i, Rcpp::wrap(L0_update), D, tol, max_iter, init); 
-    
+    Rcpp::List res = mglram(tnsr, ranks, lambda_i, Rcpp::wrap(L0_update), D, tol, max_iter, init);
     arma::cube est = Rcpp::as<arma::cube>(res["est"]);
-    L0_update = Rcpp::as<arma::mat>(res["L"]);
-    
-    if (res.containsElementNamed("filled_tnsr")) {
-      working_tnsr = Rcpp::as<arma::cube>(res["filled_tnsr"]);
-    } else {
-      working_tnsr = est; 
-    }
-    
-    arma::vec vec_est = arma::vectorise(est);
-    arma::vec est_at_masked = vec_est.elem(masked_idx);
-    mse_results(i) = arma::mean(arma::square(est_at_masked - masked_values));
-    
-    Rcpp::checkUserInterrupt(); 
+    arma::mat L = Rcpp::as<arma::mat>(res["L"]);
+    L0_update = L; // warm-start the next iteration with the L in this iteration
+    arma::cube tnsr = Rcpp::as<arma::cube>(res["filled_tnsr"]); // warm-start the next iteration with imputed data
+    arma::vec vec_tnsr = arma::vectorise(est); // vectorize the tensor
+    vectorized_tnsrs.col(i) = vec_tnsr;
+
   }
-  return mse_results;
+  return vectorized_tnsrs;
 }
+
 
 // kFoldLambda: On a sequence of lambda, run k-fold cross validation and return CV error and the associated standard error
 // tnsr: tnsr data 
@@ -420,66 +397,38 @@ arma::vec LambdaSeqFit_Optimized(const arma::cube& tnsr, const arma::vec& ranks,
 // tol: tolerance, used as convergence criteria
 // max_iter: maximum number of iterations
 // init: a numeric value to impute the missing data at the beginning
-// Rcpp::List kFoldLambda(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq, int k,
-//                       Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter, double init){
-//   int n_lambda = lambda_seq.n_elem;
-//   arma::uvec nmiss_idx = arma::find_finite(tnsr);
-//   arma::vec groups = grouping(tnsr, k); // create k groups on non-missing data 
-//   arma::vec vec_tnsr = arma::vectorise(tnsr);
-//   
-//   arma::mat MSE(n_lambda, k, arma::fill::zeros);
-//   for (int i = 1; i < k+1; i++){
-//     // mask i-th group of non-missing data 
-//     arma::uvec masked_idx = nmiss_idx(find(groups == i)); 
-//     arma::cube masked_tnsr = tnsr;  
-//     masked_tnsr.elem(masked_idx).fill(arma::datum::nan);  
-//     
-//     // obtain tensors fitted on the sequence of lambda
-//     arma::mat k_res = LambdaSeqFit(masked_tnsr, ranks, lambda_seq, L0_, D, tol, max_iter, init);
-//     
-//     // calculate CV error based on masked values
-//     arma::vec masked_values = vec_tnsr.elem(masked_idx);
-//     arma::mat est_values = k_res.rows(masked_idx);
-//     arma::rowvec squared_errors = sum(square(est_values.each_col() - masked_values), 0)/(masked_idx.n_elem);
-//     MSE.col(i-1) = squared_errors.t();
-//   }
-//   
-//   arma::vec MSE_vec = mean(MSE, 1); // a vector containing CV errors for the sequence of lambda
-//   arma::vec SE_vec = stddev(MSE, 0, 1)/std::pow(k,0.5); // a vector of standard errors for the sequence of lambda
-//  
-//   return Rcpp::List::create(
-//     Rcpp::Named("MSE_vec") = MSE_vec,
-//     Rcpp::Named("SE_vec") = SE_vec
-//   );
-//   
-// }
-
 Rcpp::List kFoldLambda(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq, int k,
-                       Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter, double init) {
+                      Rcpp::Nullable<arma::mat> L0_, const arma::mat& D, double tol, int max_iter, double init){
   int n_lambda = lambda_seq.n_elem;
   arma::uvec nmiss_idx = arma::find_finite(tnsr);
-  arma::vec groups = grouping(tnsr, k); 
+  arma::vec groups = grouping(tnsr, k); // create k groups on non-missing data
   arma::vec vec_tnsr = arma::vectorise(tnsr);
-  
+
   arma::mat MSE(n_lambda, k, arma::fill::zeros);
-  
-  for (int i = 1; i <= k; i++) {
-    arma::uvec masked_idx = nmiss_idx(find(groups == i)); 
-    arma::cube masked_tnsr = tnsr;  
-    masked_tnsr.elem(masked_idx).fill(arma::datum::nan);  
-    
+  for (int i = 1; i < k+1; i++){
+    // mask i-th group of non-missing data
+    arma::uvec masked_idx = nmiss_idx(find(groups == i));
+    arma::cube masked_tnsr = tnsr;
+    masked_tnsr.elem(masked_idx).fill(arma::datum::nan);
+
+    // obtain tensors fitted on the sequence of lambda
+    arma::mat k_res = LambdaSeqFit(masked_tnsr, ranks, lambda_seq, L0_, D, tol, max_iter, init);
+
+    // calculate CV error based on masked values
     arma::vec masked_values = vec_tnsr.elem(masked_idx);
-    
-    MSE.col(i-1) = LambdaSeqFit_Optimized(masked_tnsr, ranks, lambda_seq, masked_idx, masked_values, L0_, D, tol, max_iter, init);
+    arma::mat est_values = k_res.rows(masked_idx);
+    arma::rowvec squared_errors = sum(square(est_values.each_col() - masked_values), 0)/(masked_idx.n_elem);
+    MSE.col(i-1) = squared_errors.t();
   }
-  
-  arma::vec MSE_vec = arma::mean(MSE, 1);
-  arma::vec SE_vec = arma::stddev(MSE, 0, 1) / std::sqrt(k);
-  
+
+  arma::vec MSE_vec = mean(MSE, 1); // a vector containing CV errors for the sequence of lambda
+  arma::vec SE_vec = stddev(MSE, 0, 1)/std::pow(k,0.5); // a vector of standard errors for the sequence of lambda
+
   return Rcpp::List::create(
     Rcpp::Named("MSE_vec") = MSE_vec,
     Rcpp::Named("SE_vec") = SE_vec
   );
+
 }
 
 // kcv: k fold cross validation for different combinations of ranks and lambda
