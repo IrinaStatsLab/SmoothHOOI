@@ -1,14 +1,14 @@
-\name{oracle}
-\alias{oracle}
+\name{oracle_memeff}
+\alias{oracle_memeff}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Selection of optimal hyperparameters based on minimal losses of M 
+Selection of optimal hyperparameters based on minimal losses of M, a more memory-efficient version 
 }
 \description{
-Find the optimal hyperparameters that minimize the losses of M in a certain search grid, when the ground-truth data is given.
+Find the optimal hyperparameters that minimize the losses of M in a certain search grid, when the ground-truth data is given. The memory usage is improved compared to oracle(), which is more suitable for extremely large tensors.
 }
 \usage{
-oracle(tnsr, smooth_tnsr, rank_grid, lambda_seq, L0, D, tol = 0.1, max_iter = 500L, init = 0)
+oracle_memeff(tnsr, smooth_tnsr, rank_grid, lambda_seq, L0, D, tol = 0.1, max_iter = 500L, init = 0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -56,24 +56,3 @@ oracle(tnsr, smooth_tnsr, rank_grid, lambda_seq, L0, D, tol = 0.1, max_iter = 50
 \author{
 Leyuan Qian
 }
-%\note{
-%%  ~~further notes~~
-%}
-
-%% ~Make other sections like Warning with \section{Warning }{....} ~
-
-%\seealso{
-%% ~~objects to See Also as \code{\link{help}}, ~~~
-%}
-%\examples{
-
-%}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory (show via RShowDoc("KEYWORDS")):
-% \keyword{ ~kwd1 }
-% \keyword{ ~kwd2 }
-% Use only one keyword per line.
-% For non-standard keywords, use \concept instead of \keyword:
-% \concept{ ~cpt1 }
-% \concept{ ~cpt2 }
-% Use only one concept per line.

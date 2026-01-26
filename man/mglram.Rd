@@ -8,7 +8,7 @@ SmoothHOOI implementation
 Solve the SmoothHOOI problem with pre-defined ranks, tuning parameters, and difference matrix.
 }
 \usage{
-mglram(tnsr, ranks, lambda, L0_, D, tol = 1e-05, max_iter = 500L, init = 0)
+mglram(tnsr, ranks, lambda, L0, D, tol = 1e-05, max_iter = 500L, init = 0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -21,7 +21,7 @@ mglram(tnsr, ranks, lambda, L0_, D, tol = 1e-05, max_iter = 500L, init = 0)
   \item{lambda}{
   Tuning parameter.
 }
-  \item{L0_}{
+  \item{L0}{
   A matrix of dimension a*r1 that initializes L. Can be set to NULL.
 }
   \item{D}{
@@ -86,7 +86,7 @@ D2[1,24] <- -1
 
 # run SmoothHOOI
 res <- mglram(tnsr = tnsr, ranks = c(3, 2), init=0, D = D2,
-       lambda = 5, max_iter = 500, tol = 1e-5, L0_ = NULL)
+       lambda = 5, max_iter = 500, tol = 1e-5, L0 = NULL)
 
 res$conv
 res$L

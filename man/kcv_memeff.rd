@@ -1,14 +1,14 @@
-\name{kcv}
-\alias{kcv}
+\name{kcv_memeff}
+\alias{kcv_memeff}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Selection of optimal hyperparameters with K-fold cross-validation
+Selection of optimal hyperparameters with K-fold cross-validation, a more memory-efficient version 
 }
 \description{
-Find the optimal hyperparameters that minimize the cross-validation (CV) error in a certain search grid.
+Find the optimal hyperparameters that minimize the cross-validation (CV) error in a certain search grid. The memory usage is improved compared to kcv(), which is more suitable for extremely large tensors.
 }
 \usage{
-kcv(tnsr, rank_grid, lambda_seq, k, L0, D, tol = 0.1, max_iter = 500L, init = 0)
+kcv_memeff(tnsr, rank_grid, lambda_seq, k, L0, D, tol = 0.1, max_iter = 500L, init = 0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -85,19 +85,10 @@ Leyuan Qian
   D2[1,24] <- -1
   
   # Run 5-fold cross-validation
-  kcv_res <- kcv(tnsr, rank_grid=as.matrix(expand.grid(r1<-c(3), r2<-c(2))), 
+  kcv_res <- kcv_memeff(tnsr, rank_grid=as.matrix(expand.grid(r1<-c(3), r2<-c(2))), 
                         lambda_seq=seq(2,3,by=1), 
                         k=5, L0=NULL, D=D2, tol=0.01, max_iter=500, init=0)
   
   kcv_res$MSE_mat # matrix of CV error
   kcv_res$opt_para # optimal hyperparameters
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory (show via RShowDoc("KEYWORDS")):
-% \keyword{ ~kwd1 }
-% \keyword{ ~kwd2 }
-% Use only one keyword per line.
-% For non-standard keywords, use \concept instead of \keyword:
-% \concept{ ~cpt1 }
-% \concept{ ~cpt2 }
-% Use only one concept per line.
