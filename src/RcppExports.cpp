@@ -121,6 +121,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// kcv_hblock
+Rcpp::List kcv_hblock(const arma::cube& tnsr, const arma::mat& rank_grid, const arma::vec& lambda_seq, int k, int h, Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter, double init);
+RcppExport SEXP _SmoothHOOI_kcv_hblock(SEXP tnsrSEXP, SEXP rank_gridSEXP, SEXP lambda_seqSEXP, SEXP kSEXP, SEXP hSEXP, SEXP L0SEXP, SEXP DSEXP, SEXP tolSEXP, SEXP max_iterSEXP, SEXP initSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::cube& >::type tnsr(tnsrSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type rank_grid(rank_gridSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type lambda_seq(lambda_seqSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< int >::type h(hSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type L0(L0SEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type init(initSEXP);
+    rcpp_result_gen = Rcpp::wrap(kcv_hblock(tnsr, rank_grid, lambda_seq, k, h, L0, D, tol, max_iter, init));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_SmoothHOOI_mglram", (DL_FUNC) &_SmoothHOOI_mglram, 8},
@@ -129,6 +149,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_SmoothHOOI_loss", (DL_FUNC) &_SmoothHOOI_loss, 6},
     {"_SmoothHOOI_oracle_memeff", (DL_FUNC) &_SmoothHOOI_oracle_memeff, 9},
     {"_SmoothHOOI_kcv_memeff", (DL_FUNC) &_SmoothHOOI_kcv_memeff, 9},
+    {"_SmoothHOOI_kcv_hblock", (DL_FUNC) &_SmoothHOOI_kcv_hblock, 10},
     {NULL, NULL, 0}
 };
 

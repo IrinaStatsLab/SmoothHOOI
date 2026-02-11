@@ -25,3 +25,7 @@ kcv_memeff <- function(tnsr, rank_grid, lambda_seq, k, L0, D, tol = 0.1, max_ite
     .Call(`_SmoothHOOI_kcv_memeff`, tnsr, rank_grid, lambda_seq, k, L0, D, tol, max_iter, init)
 }
 
+kcv_hblock <- function(tnsr, rank_grid, lambda_seq, k, h, L0, D, tol = 0.1, max_iter = 500L, init = 0) {
+    .Call(`_SmoothHOOI_kcv_hblock`, tnsr, rank_grid, lambda_seq, k, h, L0, D, tol, max_iter, init)
+}
+

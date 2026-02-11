@@ -14,6 +14,11 @@ struct glramResult {
   arma::cube filled_tnsr;
 };
 
+struct Buffer  {
+  arma::uvec train_idx; // Safe indices for training
+  arma::uvec valid_idx; // Indices to validate on
+};
+
 // init_L: Initialize the L matrix
 // tnsr: tensor data, but in the array form (in R, tnsr@data)
 // r1: the rank to compress the 1st mode to
@@ -855,6 +860,171 @@ Rcpp::List kcv_memeff(const arma::cube& tnsr, const arma::mat& rank_grid, const 
   );
 }
 
+arma::vec grouping_blocked(const arma::cube& tnsr, int k){
+  arma::uvec nmiss_idx = arma::find_finite(tnsr);
+  int nmiss_size = nmiss_idx.n_elem;
+  arma::vec groups(nmiss_size);
+  
+  arma::uword a = tnsr.n_rows;
+  arma::uword b = tnsr.n_cols;
+  arma::uword n = tnsr.n_slices;
+  
+  arma::uword time_len;
+  time_len = a;
+  
+  double block_size = (double)time_len / k;
+  
+  for (int i = 0; i < nmiss_size; i++){
+    arma::uword idx = nmiss_idx(i);
+    
+    // Find the 3-dimensional index from linear index
+    arma::uword slice_idx = idx / (a * b);
+    arma::uword rem = idx % (a * b);
+    arma::uword col_idx = rem / a;
+    arma::uword row_idx = rem % a;
+    
+    arma::uword current_time = row_idx;
+    
+    // Assign group: which block this time point falls into. Result is 1-based index (1 to k)
+    int g = std::floor(current_time / block_size) + 1;
+    
+    if (g > k) g = k; // safety check
+    
+    groups(i) = g;
+  }
+  
+  return groups;
+}
+
+Buffer valid_block_buffer(const arma::vec& groups, 
+                          const arma::uvec& tnsr_shape, 
+                          const arma::uvec& nmiss_idx, 
+                          int valid_fold_id, 
+                          int h) {
+  
+  arma::uvec valid_indices = nmiss_idx.elem(arma::find(groups == valid_fold_id));
+  
+  // Handle negative buffer zones safely
+  int t_min = 999999999; 
+  int t_max = -1;
+  
+  arma::uword a = tnsr_shape(0);
+  
+  // Find the bounds of the validation block
+  for(arma::uword idx : valid_indices) {
+    int current_time = (int)(idx % a); // Explicit cast to int
+    if(current_time < t_min) t_min = current_time;
+    if(current_time > t_max) t_max = current_time;
+  }
+  
+  // exclude buffer block from training set
+  std::vector<arma::uword> train_temp;
+  train_temp.reserve(nmiss_idx.n_elem);
+  
+  // Pre-calculate buffer bounds as integers
+  int buffer_lower = t_min - h;
+  int buffer_upper = t_max + h;
+  
+  for(arma::uword i = 0; i < nmiss_idx.n_elem; ++i) {
+    if(groups(i) == valid_fold_id) continue; // Skip validation data
+    
+    arma::uword idx = nmiss_idx(i);
+    int t_curr = (int)(idx % a); // Explicit cast to int
+    
+    // Check Buffer block using signed integer comparison
+    bool in_buffer = (t_curr >= buffer_lower) && (t_curr <= buffer_upper);
+    
+    // Only include if completely outside the validation block AND buffer
+    if (!in_buffer) {
+      train_temp.push_back(idx);
+    }
+  }
+  
+  return {arma::uvec(train_temp), valid_indices};
+}
+
+arma::mat LambdaSeqFit_blocked(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq,
+                               Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter, double init,
+                               const arma::uvec& valid_idx, const arma::uvec& train_idx){ 
+  int n_lambda = lambda_seq.n_elem;
+  int n_valid = valid_idx.n_elem;
+  
+  arma::mat L0_update;
+  if (L0.isNotNull()) L0_update = Rcpp::as<arma::mat>(L0); 
+  else L0_update = init_L(tnsr, ranks(0)); 
+  
+  arma::cube train_tnsr(tnsr.n_rows, tnsr.n_cols, tnsr.n_slices);
+  train_tnsr.fill(arma::datum::nan);
+  train_tnsr.elem(train_idx) = tnsr.elem(train_idx); 
+  
+  arma::mat valid_preds(n_valid, n_lambda, arma::fill::zeros);
+  
+  for (int i = 0; i < n_lambda; i++){
+    double lam = lambda_seq(i);
+    glramResult res = mglram_internal(train_tnsr, ranks, lam, Rcpp::wrap(L0_update), D, tol, max_iter, init);
+    
+    L0_update = res.L; 
+    
+    arma::vec vec_est = arma::vectorise(res.est);
+    valid_preds.col(i) = vec_est.elem(valid_idx);
+  }
+  return valid_preds;
+}
+
+kFoldLambdaResult kFoldLambda_blocked(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq, int k,
+                                      Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter, double init,
+                                      int h){
+  
+  int n_lambda = lambda_seq.n_elem;
+  arma::uvec nmiss_idx = arma::find_finite(tnsr);
+  
+  arma::vec groups = grouping_blocked(tnsr, k); 
+  
+  arma::vec vec_tnsr = arma::vectorise(tnsr);
+  arma::uvec tnsr_shape = {tnsr.n_rows, tnsr.n_cols, tnsr.n_slices};
+  arma::mat MSE(n_lambda, k, arma::fill::zeros);
+  
+  for (int fold = 1; fold <= k; fold++){
+    Buffer buffer_res = valid_block_buffer(groups, tnsr_shape, nmiss_idx, fold, h);
+    
+    arma::mat preds = LambdaSeqFit_blocked(tnsr, ranks, lambda_seq, L0, D, tol, max_iter, init, 
+                                           buffer_res.valid_idx, buffer_res.train_idx);
+    
+    arma::vec real_value = vec_tnsr.elem(buffer_res.valid_idx);
+    arma::rowvec errs = sum(square(preds.each_col() - real_value), 0) / buffer_res.valid_idx.n_elem;
+    MSE.col(fold-1) = errs.t();
+  }
+  
+  arma::vec MSE_vec = mean(MSE, 1); 
+  arma::vec SE_vec = stddev(MSE, 0, 1)/std::pow(k,0.5); 
+  return {MSE_vec, SE_vec};
+}
+
+// [[Rcpp::export]]
+Rcpp::List kcv_hblock(const arma::cube& tnsr, 
+                      const arma::mat& rank_grid, const arma::vec& lambda_seq, int k, int h,
+                      Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol=0.1, int max_iter=500, double init=0){
+  
+  int n_ranks = rank_grid.n_rows;
+  int n_lambda = lambda_seq.n_elem;
+  
+  arma::mat MSE_mat(n_ranks, n_lambda, arma::fill::zeros);
+  arma::mat SE_mat(n_ranks, n_lambda, arma::fill::zeros);
+  
+  for (int i = 0; i < n_ranks; i++){
+    arma::vec rank_i = rank_grid.row(i).t();
+    kFoldLambdaResult res = kFoldLambda_blocked(tnsr, rank_i, lambda_seq, k, L0, D, tol, max_iter, init, h);
+    MSE_mat.row(i) = res.MSE_vec.t();
+    SE_mat.row(i) = res.SE_vec.t();
+  }
+  
+  arma::uword min_index = MSE_mat.index_min();
+  arma::uword row = min_index % MSE_mat.n_rows;
+  arma::uword col = min_index / MSE_mat.n_rows;
+  arma::rowvec opt_para = arma::join_horiz(rank_grid.row(row).cols(0, 1), arma::rowvec({lambda_seq(col)}));
+  
+  return Rcpp::List::create(Rcpp::Named("MSE_mat") = MSE_mat, Rcpp::Named("SE_mat") = SE_mat, Rcpp::Named("opt_para") = opt_para);
+}
 
 
 
