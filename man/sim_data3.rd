@@ -48,6 +48,7 @@ This function is developed based on the rTensor package (Li et al., 2018).
 }
 \value{
 \item{sim_Msmooth}{Simulated ground-truth tensor, smooth and complete}
+\item{sim_Mnoise}{Simulated tensor, noisy but complete}
 \item{sim_Mmiss}{Simulated tensor, noisy and incomplete}
 \item{sim_R}{Simulated R matrix}
 \item{sim_G}{Simulated core tensor G}

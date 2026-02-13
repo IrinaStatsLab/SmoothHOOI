@@ -68,18 +68,18 @@ BEGIN_RCPP
 END_RCPP
 }
 // loss
-Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr, Rcpp::Nullable<arma::mat> L, Rcpp::Nullable<arma::mat> true_L, Rcpp::Nullable<arma::mat> R, Rcpp::Nullable<arma::mat> true_R);
-RcppExport SEXP _SmoothHOOI_loss(SEXP tnsrSEXP, SEXP smooth_tnsrSEXP, SEXP LSEXP, SEXP true_LSEXP, SEXP RSEXP, SEXP true_RSEXP) {
+Rcpp::List loss(Rcpp::Nullable<arma::cube> tnsr, Rcpp::Nullable<arma::cube> true_tnsr, Rcpp::Nullable<arma::mat> L, Rcpp::Nullable<arma::mat> true_L, Rcpp::Nullable<arma::mat> R, Rcpp::Nullable<arma::mat> true_R);
+RcppExport SEXP _SmoothHOOI_loss(SEXP tnsrSEXP, SEXP true_tnsrSEXP, SEXP LSEXP, SEXP true_LSEXP, SEXP RSEXP, SEXP true_RSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::cube& >::type tnsr(tnsrSEXP);
-    Rcpp::traits::input_parameter< const arma::cube& >::type smooth_tnsr(smooth_tnsrSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::cube> >::type tnsr(tnsrSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<arma::cube> >::type true_tnsr(true_tnsrSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type L(LSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type true_L(true_LSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type R(RSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<arma::mat> >::type true_R(true_RSEXP);
-    rcpp_result_gen = Rcpp::wrap(loss(tnsr, smooth_tnsr, L, true_L, R, true_R));
+    rcpp_result_gen = Rcpp::wrap(loss(tnsr, true_tnsr, L, true_L, R, true_R));
     return rcpp_result_gen;
 END_RCPP
 }

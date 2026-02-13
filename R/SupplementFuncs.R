@@ -161,7 +161,7 @@ sim_data2 <- function(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent, 
     sim_Mmiss <- .mask4(sim_Mnoise, lower = lower, upper = upper)
   }
   
-  out=list(sim_Msmooth=sim_Msmooth, sim_Mnoise=sim_Mnoise, sim_Mmiss=sim_Mmiss)
+  out=list(sim_Msmooth=sim_Msmooth, sim_Mnoise=sim_Mnoise, sim_Mmiss=sim_Mmiss, sim_G = sim_G)
 }
 
 # Generate synthetic tensor data with smoothness in the 1st mode
@@ -206,52 +206,41 @@ sim_data3 <- function(L, b, r2, p, noise_sd, noise_level, pattern, percent, lowe
   
 }
 
-# Run FPCA and return the losses 
-# tnsr: simulated noisy, incomplete data
-# smooth_tnsr: underlying smooth, complete data 
-# true L: ground truth of L
-# npc, pve, center: arguments required in refund::fpca()
-# fpca_res <- function(tnsr, smooth_tnsr, true_L, npc=NULL, pve=0.99, center=TRUE){
-#   nmiss_idx <- which(!is.na(tnsr@data))
-#   b <- tnsr@modes[2]
-#   
-#   h <- list()
-#   outfpca <- list()
-#   for (i in 1:b){
-#     h[[i]] <- rTensor::unfold(tnsr[,i,], row_idx = 2, col_idx = 1)@data
-#     outfpca[[i]] <- refund::fpca.sc(Y = as.matrix(h[[i]]), pve=pve, npc = npc, center=center)
-#   }
-#   
-#   p <- tnsr@modes[3]
-#   outfpcaYhat <- array(NA, dim=tnsr@modes)
-#   
-#   for (i in 1:p){
-#     for (j in 1:b){
-#       outfpcaYhat[,j,i] <- outfpca[[j]]$Yhat[i,] # yhat is the estimated, smoothed curve, with missing data imputed
-#     }
-#   }
-#   
-#   # Calculate loss of M
-#   loss_M <- sum((outfpcaYhat - smooth_tnsr@data)^2)/length(outfpcaYhat)
-#   
-#   # take the minimum number of columns among the estimated L matrices
-#   min_col <- min(sapply(outfpca[1:b], function(x) ncol(x$efunctions)))
-#   # min_col <- min(ncol(outfpca1$efunctions), ncol(outfpca2$efunctions), ncol(outfpca3$efunctions))
-#   
-#   # Take average of the estimated L matrice and ensure orthogonality using qr decomposition
-#   Lfpca <- list()
-#   for (i in 1:b){
-#     Lfpca_i <- outfpca[[i]]$efunctions[,1:min_col]
-#     Lfpca[[i]] <- qr.Q(qr(Lfpca_i))
-#   }
-#   
-#   Lfpca_avg <- Reduce("+", Lfpca) / length(Lfpca)
-#   Lfpca_avg <- qr.Q(qr(Lfpca_avg))
-#   
-#   loss_L <- sqrt(0.5*sum((true_L %*% t(true_L) - Lfpca_avg %*% t(Lfpca_avg))^2))
-#   
-#   out=list(est=outfpcaYhat, Lfpca=Lfpca_avg, loss_M=loss_M, loss_L=loss_L)
-# }
+sim_data4 <- function(L, b, r2, p, pattern, percent, lower, upper, phi, ar1_noise_sd) {
+  a <- nrow(L)
+  r1 <- ncol(L)
+  
+  # generate R using normal matrix and SVD 
+  norm_mat_R <- matrix(stats::rnorm(b * r2, mean = 0, sd = 1), nrow = b, ncol = r2)
+  R <- svd(norm_mat_R)$u[, 1:r2]
+  
+  # generate core tensor G from normal distribution
+  G <- array(rnorm(r1 * r2 * p, mean = 0, sd = 1), dim = c(r1, r2, p))
+  
+  # make a smooth, complete tensor data 
+  sim_Msmooth <- rTensor::ttl(rTensor::as.tensor(G), list_mat=list(L, R), ms=c(1,2))
+  
+  # add ar1 noise to the smooth, complete data
+  error_array <- array(NA, dim=c(a,b,p))
+  for (i in 1:b){
+    for (j in 1:p){
+      if (phi>0) noise_ar1 <- arima.sim(model = list(ar = phi), n = a, sd = ar1_noise_sd)
+      if (phi==0) noise_ar1 <- arima.sim(model = list(), n = a, sd = ar1_noise_sd)
+      error_array[,i,j] <- noise_ar1
+    }
+  }
+  sim_Mnoise <- rTensor::as.tensor(sim_Msmooth@data + error_array)
+  
+  # mask the noisy data
+  if (pattern=="random"){
+    sim_Mmiss <- .mask1(sim_Mnoise, percent = percent)
+  } else if (pattern=="structured"){
+    sim_Mmiss <- .mask4(sim_Mnoise, lower = lower, upper = upper)
+  }
+  
+  out=list(sim_Msmooth=sim_Msmooth, sim_Mnoise=sim_Mnoise, sim_Mmiss=sim_Mmiss, sim_R = R, sim_G = G)
+  
+}
 
 
 # Rotation to guarantee identifiability for downstream inference

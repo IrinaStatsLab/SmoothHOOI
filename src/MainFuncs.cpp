@@ -484,14 +484,20 @@ Rcpp::List kcv(const arma::cube& tnsr, const arma::mat& rank_grid, const arma::v
 // true_L: ground truth of L 
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
-Rcpp::List loss(const arma::cube& tnsr, const arma::cube& smooth_tnsr, 
+Rcpp::List loss(Rcpp::Nullable<arma::cube> tnsr, Rcpp::Nullable<arma::cube> true_tnsr, 
                 Rcpp::Nullable<arma::mat> L = R_NilValue, Rcpp::Nullable<arma::mat> true_L = R_NilValue,
                 Rcpp::Nullable<arma::mat> R = R_NilValue, Rcpp::Nullable<arma::mat> true_R = R_NilValue){
-  int n = tnsr.n_elem;
   
   // MSE for loss of M 
-  arma::cube diff_M = tnsr - smooth_tnsr;
-  double loss_M = arma::accu(diff_M % diff_M) / n;
+  double loss_M = NA_REAL;
+  if (tnsr.isNotNull() && true_tnsr.isNotNull()) {
+    arma::cube M_cube      = Rcpp::as<arma::cube>(tnsr);
+    arma::cube true_M_cube = Rcpp::as<arma::cube>(true_tnsr);
+    
+    int n = M_cube.n_elem;
+    arma::cube diff_M = M_cube - true_M_cube;
+    loss_M = arma::accu(diff_M % diff_M) / n;
+  }
   
   // chordal distance for loss of L
   double loss_L = NA_REAL;

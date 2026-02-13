@@ -13,8 +13,8 @@ kcv <- function(tnsr, rank_grid, lambda_seq, k, L0, D, tol = 0.1, max_iter = 500
     .Call(`_SmoothHOOI_kcv`, tnsr, rank_grid, lambda_seq, k, L0, D, tol, max_iter, init)
 }
 
-loss <- function(tnsr, smooth_tnsr, L = NULL, true_L = NULL, R = NULL, true_R = NULL) {
-    .Call(`_SmoothHOOI_loss`, tnsr, smooth_tnsr, L, true_L, R, true_R)
+loss <- function(tnsr, true_tnsr, L = NULL, true_L = NULL, R = NULL, true_R = NULL) {
+    .Call(`_SmoothHOOI_loss`, tnsr, true_tnsr, L, true_L, R, true_R)
 }
 
 oracle_memeff <- function(tnsr, smooth_tnsr, rank_grid, lambda_seq, L0, D, tol = 0.1, max_iter = 500L, init = 0) {

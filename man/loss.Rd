@@ -8,15 +8,15 @@ Calculation of losses of M and L
 Compare the original data and its reconstruction with calculation of losses of M and L
 }
 \usage{
-loss(tnsr, smooth_tnsr, L, true_L, R, true_R)
+loss(tnsr, true_tnsr, L, true_L, R, true_R)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{tnsr}{
   A multi-dimensional array of dimension a*b*n. Should be organized so that the first two dimensions are to be compressed.
 }
-  \item{smooth_tnsr}{
-  A multi-dimensional array of dimension a*b*n, which contains the smooth, complete ground-truth data.
+  \item{true_tnsr}{
+  A multi-dimensional array of dimension a*b*n, which contains the ground-truth data.
 }
   \item{L}{
   Estimated L matrix. 
