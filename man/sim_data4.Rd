@@ -1,5 +1,5 @@
-\name{sim_data3}
-\alias{sim_data3}
+\name{sim_data4}
+\alias{sim_data4}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 Generation of simulated data
@@ -8,11 +8,11 @@ Generation of simulated data
 Generate 3-way tensor data when the following information is available. Can define dimension of each mode, noise, noise level, missing pattern, and missing rate.  
 }
 \usage{
-sim_data3(L, b, r2, p, noise_sd, noise_level, pattern, percent, lower, upper)
+sim_data4(L, b, r2, p, pattern, percent, lower, upper, phi, ar1_noise_sd)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
- \item{L}{
+  \item{L}{
   A known matrix L of dimension a*r1. Can contain special features such as smoothness.
 }
   \item{b}{
@@ -24,27 +24,27 @@ sim_data3(L, b, r2, p, noise_sd, noise_level, pattern, percent, lower, upper)
   \item{p}{
   Dimension of the 3rd mode of the synthetic tensor. Should be an integer. 
 }
-  \item{noise_sd}{
-  sd value to be used when sampling noise from rnorm with mean=0, sd=noise
-}
-  \item{noise_level}{
-  Noise level. Adjusts noise sampling to be from rnorm with mean=0, sd=noise * sqrt(noise_level). Should be greater than or equal to 0.
-}
   \item{pattern}{
   Missing pattern. Can be either "random" or "structured".
 }
   \item{percent}{
   Percent of data to be set to missing, if pattern = "random". Should be a number in [0,1).
 }
- \item{lower}{
+  \item{lower}{
   Minimum number of rows to be masked, if pattern = "structured".
 }
   \item{upper}{
   Maximum number of rows to be masked, if pattern = "structured".
 }
+  \item{phi}{
+  Autocorrelation parameter for ar1 noise, between 0 and 1. If phi=0, the noise is white noise; if phi>0, the noise is autocorrelated.
+}
+  \item{ar1_noise_sd}{
+  standard deviation for the ar1 noise to be generated from arima.sim()
+}
 }
 \details{
-This function is developed based on the rTensor package (Li et al., 2018). 
+This function is developed based on the rTensor package (Li et al., 2018) and arima.sim() function in the R stats package. 
 }
 \value{
 \item{sim_Msmooth}{Simulated ground-truth tensor, smooth and complete}
@@ -52,7 +52,6 @@ This function is developed based on the rTensor package (Li et al., 2018).
 \item{sim_Mmiss}{Simulated tensor, noisy and incomplete}
 \item{sim_R}{Simulated R matrix}
 \item{sim_G}{Simulated core tensor G}
-
 }
 \references{
 Li J, Bien J, Wells MT (2018).
@@ -66,8 +65,6 @@ Leyuan Qian
 %%  ~~further notes~~
 %}
 
-%% ~Make other sections like Warning with \section{Warning }{....} ~
-
 %\seealso{
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 %}
@@ -77,13 +74,14 @@ Leyuan Qian
   # Generate random L
   L <- matrix(rnorm(24 * 3), nrow = 24, ncol = 3) # L is 24 * 3
   
-  synthetic <- sim_data3(L, b=50, r2=20, p=200, noise_sd=0.6, noise_level=1, 
-  pattern="random", percent=0.2)
+  synthetic <- sim_data4(L=L, b=20, r2=3, p=30, 
+  pattern="random", percent=0.2, phi=0.5, ar1_noise_sd = 0.01)
   
   (synthetic$sim_Msmooth)@data[ , , 1] # ground truth smooth data, showing the first frontal slice
   (synthetic$sim_Mnoise)@data[ , ,1] # noisy, complete data, showing the first frontal slice
   (synthetic$sim_Mmiss)@data[ , ,1] # noisy, incomplete data, showing the first frontal slice
   synthetic$sim_R
   synthetic$sim_G[ , ,1]
+
 }
 

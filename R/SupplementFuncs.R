@@ -165,10 +165,8 @@ sim_data2 <- function(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent, 
 }
 
 # Generate synthetic tensor data with smoothness in the 1st mode
-# returnR matrix and core tensor G, the smooth, complete underlying data, and the noisy, incomplete data
+# return R matrix and core tensor G, the smooth, complete underlying data, and the noisy, incomplete data
 # L: Known matrix with smooth (temporal) principal components as its columns
-# a: dimension of the 1st mode
-# r1: decomposition rank for the 1st mode
 # b: number of variables (e.g., 3 for ABPM data)
 # r2: decomposition rank for the 2nd mode
 # p: number of samples (e.g. patients in ABPM data)
@@ -186,7 +184,7 @@ sim_data3 <- function(L, b, r2, p, noise_sd, noise_level, pattern, percent, lowe
   R <- svd(norm_mat_R)$u[, 1:r2]
   
   # generate core tensor G from normal distribution
-  G <- array(rnorm(r1 * r2 * p, mean = 0, sd = 1), dim = c(r1, r2, p))
+  G <- array(stats::rnorm(r1 * r2 * p, mean = 0, sd = 1), dim = c(r1, r2, p))
   
   # make a smooth, complete tensor data 
   sim_Msmooth <- rTensor::ttl(rTensor::as.tensor(G), list_mat=list(L, R), ms=c(1,2))
@@ -206,6 +204,17 @@ sim_data3 <- function(L, b, r2, p, noise_sd, noise_level, pattern, percent, lowe
   
 }
 
+# Generate synthetic tensor data with smoothness in the 1st mode. Noises are generated from arima.sim(), which allows for autocorrelated structure.
+# return R matrix and core tensor G, the smooth, complete underlying data, and the noisy, incomplete data
+# L: Known matrix with smooth (temporal) principal components as its columns
+# b: number of variables (e.g., 3 for ABPM data)
+# r2: decomposition rank for the 2nd mode
+# p: number of samples (e.g. patients in ABPM data)
+# pattern: "random" or "structured"
+# percent: percent of data to be masked, if pattern = "random"
+# lower, upper: range of number of timepoints to be masked, if pattern = "structured"
+# phi: autocorrelation parameter for ar1 noise, between 0 and 1. If phi=0, the noise is white noise; if phi>0, the noise is autocorrelated.
+# ar1_noise_sd: standard deviation for the ar1 noise to be generated from arima.sim()
 sim_data4 <- function(L, b, r2, p, pattern, percent, lower, upper, phi, ar1_noise_sd) {
   a <- nrow(L)
   r1 <- ncol(L)
@@ -215,7 +224,7 @@ sim_data4 <- function(L, b, r2, p, pattern, percent, lower, upper, phi, ar1_nois
   R <- svd(norm_mat_R)$u[, 1:r2]
   
   # generate core tensor G from normal distribution
-  G <- array(rnorm(r1 * r2 * p, mean = 0, sd = 1), dim = c(r1, r2, p))
+  G <- array(stats::rnorm(r1 * r2 * p, mean = 0, sd = 1), dim = c(r1, r2, p))
   
   # make a smooth, complete tensor data 
   sim_Msmooth <- rTensor::ttl(rTensor::as.tensor(G), list_mat=list(L, R), ms=c(1,2))
@@ -224,8 +233,8 @@ sim_data4 <- function(L, b, r2, p, pattern, percent, lower, upper, phi, ar1_nois
   error_array <- array(NA, dim=c(a,b,p))
   for (i in 1:b){
     for (j in 1:p){
-      if (phi>0) noise_ar1 <- arima.sim(model = list(ar = phi), n = a, sd = ar1_noise_sd)
-      if (phi==0) noise_ar1 <- arima.sim(model = list(), n = a, sd = ar1_noise_sd)
+      if (phi>0) noise_ar1 <- stats::arima.sim(model = list(ar = phi), n = a, sd = ar1_noise_sd)
+      if (phi==0) noise_ar1 <-stats::arima.sim(model = list(), n = a, sd = ar1_noise_sd)
       error_array[,i,j] <- noise_ar1
     }
   }

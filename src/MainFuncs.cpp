@@ -528,7 +528,9 @@ Rcpp::List loss(Rcpp::Nullable<arma::cube> tnsr, Rcpp::Nullable<arma::cube> true
   );
 }
 
-// The functions below are intended to make memory usage more efficient in k-fold cross-validation and oracle method in simulation studies
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// The functions below are intended to make memory usage more efficient in k-fold cross-validation and oracle method
 // idea and algorithm are the same as the functions above
 
 glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, double lambda, 
@@ -599,12 +601,6 @@ glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
     eigvec_cal_L = eigvec_cal_L.cols(indices_L);
     L = eigvec_cal_L.head_cols(r1);
     
-    // alternative way to recover L: QR decomposition 
-    // arma::mat cal_L =  A_inv_sqrt * U;
-    // arma::mat qr_Q, qr_R;
-    // arma::qr(qr_Q, qr_R, cal_L);
-    // L = qr_Q;
-    
     double f_sum = 0.0;
     
     
@@ -613,8 +609,6 @@ glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
       
       arma::mat LTMR = L.t() * M_i * R;
       arma::mat prior_term = arma::eye(r1, r1) + lambda * (L.t() * DtD * L);
-      // arma::mat prior_term_inv = arma::inv(prior_term);
-      // G.slice(i) = prior_term_inv * LTMR; // calculate G from L, M, and R
       
       G.slice(i) = arma::solve(prior_term, LTMR);
       
@@ -758,8 +752,6 @@ Rcpp::List oracle_memeff(const arma::cube& tnsr, const arma::cube& smooth_tnsr, 
   );
 }
 
-
-
 // LambdaSeqFit_memeff: On a sequence of lambda, run the algorithm and return the estimated tensor as columns of a matrix 
 // masked_idx: masked tensor index from k fold cross validation
 arma::mat LambdaSeqFit_memeff(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq,
@@ -825,7 +817,7 @@ kFoldLambdaResult kFoldLambda_memeff(const arma::cube& tnsr, const arma::vec& ra
 }
 
 // kcv_memeff: k fold cross validation for different combinations of ranks and lambda
-//      return a matrix of CV error (rows representing ranks, cols representing lambda), a matrix of SE, and the optimal hyperparameters
+// return a matrix of CV error (rows representing ranks, cols representing lambda), a matrix of SE, and the optimal hyperparameters
 // [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 Rcpp::List kcv_memeff(const arma::cube& tnsr, const arma::mat& rank_grid, const arma::vec& lambda_seq, int k,
@@ -866,6 +858,13 @@ Rcpp::List kcv_memeff(const arma::cube& tnsr, const arma::mat& rank_grid, const 
   );
 }
 
+//////////////////////////////////////////////////////////////////////////////////
+
+// The functions below are intended to implement h-block cross-validation
+
+// grouping_blocked: divide the data into contiguous k groups along the first mode
+// tnsr: tensor data
+// k: number of groups
 arma::vec grouping_blocked(const arma::cube& tnsr, int k){
   arma::uvec nmiss_idx = arma::find_finite(tnsr);
   int nmiss_size = nmiss_idx.n_elem;
@@ -875,10 +874,11 @@ arma::vec grouping_blocked(const arma::cube& tnsr, int k){
   arma::uword b = tnsr.n_cols;
   arma::uword n = tnsr.n_slices;
   
-  arma::uword time_len;
-  time_len = a;
+  // find the length of the first mode (usually representing time)
+  arma::uword time_len; 
+  time_len = a; 
   
-  double block_size = (double)time_len / k;
+  double block_size = (double)time_len / k; // calculate the size of each block
   
   for (int i = 0; i < nmiss_size; i++){
     arma::uword idx = nmiss_idx(i);
@@ -889,7 +889,8 @@ arma::vec grouping_blocked(const arma::cube& tnsr, int k){
     arma::uword col_idx = rem / a;
     arma::uword row_idx = rem % a;
     
-    arma::uword current_time = row_idx;
+    // Find the time (first mode) index for the current data point
+    arma::uword current_time = row_idx; 
     
     // Assign group: which block this time point falls into. Result is 1-based index (1 to k)
     int g = std::floor(current_time / block_size) + 1;
@@ -902,6 +903,12 @@ arma::vec grouping_blocked(const arma::cube& tnsr, int k){
   return groups;
 }
 
+// valid_block_buffer: Given the group assignment, identify the validation block and the buffer block, and return the indices for training and validation sets
+// groups: the group assignment for non-missing data, a vector of length equal to the number of non-missing data, with values from 1 to k indicating the group assignment
+// tnsr_shape: the shape of the original tensor, used to calculate the time index from linear index
+// nmiss_idx: the linear indices of non-missing data in the original tensor
+// valid_fold_id: the fold id for validation, an integer from 1 to k
+// h: the size of the buffer block, an integer representing the number of time points to exclude on each side of the validation block
 Buffer valid_block_buffer(const arma::vec& groups, 
                           const arma::uvec& tnsr_shape, 
                           const arma::uvec& nmiss_idx, 
@@ -940,7 +947,7 @@ Buffer valid_block_buffer(const arma::vec& groups,
     // Check Buffer block using signed integer comparison
     bool in_buffer = (t_curr >= buffer_lower) && (t_curr <= buffer_upper);
     
-    // Only include if completely outside the validation block AND buffer
+    // Only include as training data if completely outside the validation block AND buffer block
     if (!in_buffer) {
       train_temp.push_back(idx);
     }
@@ -949,6 +956,13 @@ Buffer valid_block_buffer(const arma::vec& groups,
   return {arma::uvec(train_temp), valid_indices};
 }
 
+// LambdaSeqFit_blocked:On a sequence of lambda, run the algorithm and return the estimates for the validation data as columns of a matrix 
+// tnsr: tensor data
+// ranks: define (r1, r2), compressed dimensions for mode 1 and mode 2
+// lambda_seq: a sequence of lambda
+// L0, D, tol, max_iter, int: same definitions as in mglram()
+// valid_idx: linear index of validation data
+// train_idx: linear index of training data
 arma::mat LambdaSeqFit_blocked(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq,
                                Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter, double init,
                                const arma::uvec& valid_idx, const arma::uvec& train_idx){ 
@@ -959,10 +973,12 @@ arma::mat LambdaSeqFit_blocked(const arma::cube& tnsr, const arma::vec& ranks, c
   if (L0.isNotNull()) L0_update = Rcpp::as<arma::mat>(L0); 
   else L0_update = init_L(tnsr, ranks(0)); 
   
+  // generate training tensor, in which the validation data and buffer block are 
   arma::cube train_tnsr(tnsr.n_rows, tnsr.n_cols, tnsr.n_slices);
   train_tnsr.fill(arma::datum::nan);
   train_tnsr.elem(train_idx) = tnsr.elem(train_idx); 
   
+  // matrix to store the predictions for validation data on the sequence of lambda, each column represents the predictions for one lambda
   arma::mat valid_preds(n_valid, n_lambda, arma::fill::zeros);
   
   for (int i = 0; i < n_lambda; i++){
@@ -977,6 +993,14 @@ arma::mat LambdaSeqFit_blocked(const arma::cube& tnsr, const arma::vec& ranks, c
   return valid_preds;
 }
 
+
+// kFoldLambda_blocked: On a sequence of lambda, run k-fold cross validation and return CV error and the associated standard error
+// tnsr: tnsr data 
+// ranks: define (r1, r2), compressed dimensions for mode 1 and mode 2
+// lambda_seq: a sequence of lambda
+// k: number of folds
+// h: length of a block
+// L0, D, tol, max_iter, init: same definitions as in mglram()
 kFoldLambdaResult kFoldLambda_blocked(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq, int k,
                                       Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter, double init,
                                       int h){
@@ -984,12 +1008,14 @@ kFoldLambdaResult kFoldLambda_blocked(const arma::cube& tnsr, const arma::vec& r
   int n_lambda = lambda_seq.n_elem;
   arma::uvec nmiss_idx = arma::find_finite(tnsr);
   
+  // divide the data 
   arma::vec groups = grouping_blocked(tnsr, k); 
   
   arma::vec vec_tnsr = arma::vectorise(tnsr);
   arma::uvec tnsr_shape = {tnsr.n_rows, tnsr.n_cols, tnsr.n_slices};
   arma::mat MSE(n_lambda, k, arma::fill::zeros);
   
+  // iterate over the each fold
   for (int fold = 1; fold <= k; fold++){
     Buffer buffer_res = valid_block_buffer(groups, tnsr_shape, nmiss_idx, fold, h);
     
@@ -997,15 +1023,24 @@ kFoldLambdaResult kFoldLambda_blocked(const arma::cube& tnsr, const arma::vec& r
                                            buffer_res.valid_idx, buffer_res.train_idx);
     
     arma::vec real_value = vec_tnsr.elem(buffer_res.valid_idx);
-    arma::rowvec errs = sum(square(preds.each_col() - real_value), 0) / buffer_res.valid_idx.n_elem;
+    arma::rowvec errs = sum(square(preds.each_col() - real_value), 0) / buffer_res.valid_idx.n_elem; // calculate CV error
     MSE.col(fold-1) = errs.t();
   }
   
-  arma::vec MSE_vec = mean(MSE, 1); 
-  arma::vec SE_vec = stddev(MSE, 0, 1)/std::pow(k,0.5); 
+  arma::vec MSE_vec = mean(MSE, 1); // CV error
+  arma::vec SE_vec = stddev(MSE, 0, 1)/std::pow(k,0.5); // sd across folds
   return {MSE_vec, SE_vec};
 }
 
+// kcv_hblock: k fold cross validation for different combinations of ranks and lambda with h-block (or hv-block) strategy
+// return a matrix of CV error (rows representing ranks, cols representing lambda), a matrix of SE, and the optimal hyperparameters
+// tnsr: tensor data
+// rank_grid: search grid for ranks
+// lambda_seq: a sequence of lambda
+// k: number of folds
+// h: length of block
+// L0, D, tol, max_iter, init: same definitions as in mglram()
+// [[Rcpp::depends(RcppArmadillo)]]
 // [[Rcpp::export]]
 Rcpp::List kcv_hblock(const arma::cube& tnsr, 
                       const arma::mat& rank_grid, const arma::vec& lambda_seq, int k, int h,
@@ -1024,6 +1059,7 @@ Rcpp::List kcv_hblock(const arma::cube& tnsr,
     SE_mat.row(i) = res.SE_vec.t();
   }
   
+  // find the index of minimum CV error
   arma::uword min_index = MSE_mat.index_min();
   arma::uword row = min_index % MSE_mat.n_rows;
   arma::uword col = min_index / MSE_mat.n_rows;

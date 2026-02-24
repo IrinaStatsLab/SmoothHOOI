@@ -13,7 +13,8 @@ RoxygenNote: 7.3.2
 Imports: 
     MASS,
     Rcpp (>= 1.0.14),
-    rTensor
+    rTensor,
+    stats
 LinkingTo: Rcpp, RcppArmadillo
 RemoteType: local
 RemotePkgRef: local::~/Desktop/ABPM/SmoothHOOI

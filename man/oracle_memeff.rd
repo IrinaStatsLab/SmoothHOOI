@@ -8,7 +8,8 @@ Selection of optimal hyperparameters based on minimal losses of M, a more memory
 Find the optimal hyperparameters that minimize the losses of M in a certain search grid, when the ground-truth data is given. The memory usage is improved compared to oracle(), which is more suitable for extremely large tensors.
 }
 \usage{
-oracle_memeff(tnsr, smooth_tnsr, rank_grid, lambda_seq, L0, D, tol = 0.1, max_iter = 500L, init = 0)
+oracle_memeff(tnsr, smooth_tnsr, rank_grid, lambda_seq, L0, D, tol = 0.1, 
+max_iter = 500L, init = 0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{

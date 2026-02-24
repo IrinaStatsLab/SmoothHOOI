@@ -87,9 +87,11 @@ Leyuan Qian
   cov_G <- cov(G_mat) # cov_G is a covariance matrix of G scores
   E <- array(rnorm(24 * 3 * 207), dim = c(24, 3, 207)) # E is 24 * 3 * 207
   
-  synthetic <- sim_data2(L, R, mean_G, cov_G, E, p = 207, noise_level = 1, pattern = "random", percent = 0.2)
+  synthetic <- sim_data2(L, R, mean_G, cov_G, E, p = 207, noise_level = 1, 
+  pattern = "random", percent = 0.2)
   
   (synthetic$sim_Msmooth)@data[ , , 1] # ground truth smooth data, showing the first frontal slice
+  (synthetic$sim_Mnoise)@data[ , ,1] # noisy, complete data, showing the first frontal slice
   (synthetic$sim_Mmiss)@data[ , ,1] # noisy, incomplete data, showing the first frontal slice
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the

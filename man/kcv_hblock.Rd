@@ -1,29 +1,31 @@
-\name{oracle}
-\alias{oracle}
-%- Also NEED an '\alias' for EACH other topic documented here.
+\name{kcv_hblock}
+\alias{kcv_hblock}
 \title{
-Selection of optimal hyperparameters based on minimal losses of M 
+Selection of optimal hyperparameters with h-block cross-validation
 }
 \description{
-Find the optimal hyperparameters that minimize the losses of M in a certain search grid, when the ground-truth data is given.
+Find the optimal hyperparameters that minimize the cross-validation (CV) error in a certain search grid,
+especially when there's autocorrelated residuals in the data.
 }
 \usage{
-oracle(tnsr, smooth_tnsr, rank_grid, lambda_seq, L0, D, tol = 0.1, 
-max_iter = 500L, init = 0)
+kcv_hblock(tnsr, rank_grid, lambda_seq, k, h, L0, D, tol = 0.1, max_iter = 500L, init = 0)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{tnsr}{
   A multi-dimensional array of dimension a*b*n. Should be organized so that the first two dimensions are to be compressed.
-} 
-  \item{smooth_tnsr}{
-  A multi-dimensional array of dimension a*b*n, which contains the smooth, complete ground-truth data.
 }
   \item{rank_grid}{
   A matrix in which each row is a combination of ranks r1 and r2. 
 }
   \item{lambda_seq}{
   A vector of tuning parameters. 
+}
+  \item{k}{
+  Number of folds.
+}
+  \item{h}{
+  Length of block
 }
   \item{L0}{
   A matrix of dimension a*r1 that initializes L. Can be set to NULL.
@@ -45,11 +47,9 @@ max_iter = 500L, init = 0)
 %%  ~~ If necessary, more details than the description above ~~
 %}
 \value{
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-\item{error}{A matrix of losses of M; rows representing ranks, cols representing lambda}
+\item{MSE_mat}{A matrix of CV error; rows representing ranks, cols representing lambda}
+\item{SE_mat}{A matrix of standard errors of the CV error across the k folds}
 \item{opt_para}{A vector of optimal hyperparameters; in the order of r1, r2, lambda}
-%% ...
 }
 %\references{
 %% ~put references to the literature/web site here ~
@@ -69,12 +69,4 @@ Leyuan Qian
 %\examples{
 
 %}
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory (show via RShowDoc("KEYWORDS")):
-% \keyword{ ~kwd1 }
-% \keyword{ ~kwd2 }
-% Use only one keyword per line.
-% For non-standard keywords, use \concept instead of \keyword:
-% \concept{ ~cpt1 }
-% \concept{ ~cpt2 }
-% Use only one concept per line.
+
