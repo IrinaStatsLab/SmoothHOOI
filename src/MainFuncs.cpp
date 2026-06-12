@@ -24,8 +24,8 @@ struct Buffer  {
 // r1: the rank to compress the 1st mode to
 arma::mat init_L(const arma::cube& tnsr, int r1) {
   int a = tnsr.n_rows; // original dimension of mode 1
-  int b = tnsr.n_cols; // original dimension of mode 2 
-  int n = tnsr.n_slices; // original dimension of mode 3
+  // int b = tnsr.n_cols; // original dimension of mode 2 
+  // int n = tnsr.n_slices; // original dimension of mode 3
   
   arma::mat L0(a, r1, arma::fill::zeros);  
   L0.submat(0, 0, r1 - 1, r1 - 1) = arma::eye(r1, r1);  
@@ -53,7 +53,7 @@ arma::cube ImputeTnsr_cpp(const arma::cube& tnsr, double num){
 // // [[Rcpp::depends(RcppArmadillo)]]
 // // [[Rcpp::export]]
 Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda, 
-                  Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter) {
+                  Rcpp::Nullable<arma::mat> L0, const arma::mat& D,  const arma::mat& DtD,double tol, int max_iter) {
   int a = tnsr.n_rows; // original dimension of mode 1
   int b = tnsr.n_cols; // original dimension of mode 2
   int n = tnsr.n_slices; // original dimension of mode 3
@@ -68,7 +68,7 @@ Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     L_init = Rcpp::as<arma::mat>(L0); // Initialize L0 with defined a defined matrix given by the user
   }
   
-  arma::mat A = arma::eye(D.n_cols, D.n_cols) + lambda * D.t() * D; // A = I + lambda* t(D) %*% D
+  arma::mat A = arma::eye(D.n_cols, D.n_cols) + lambda * DtD; // A = I + lambda* t(D) %*% D
   arma::vec eigval;
   arma::mat eigvec;
   arma::eig_sym(eigval, eigvec, A); // eigendecomposition of A
@@ -132,13 +132,13 @@ Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     // L = qr_Q;
     
     double f_sum = 0.0;
-    arma::mat DtD = D.t() * D;
+    arma::mat prior_term = arma::eye(r1, r1) + lambda * (L.t() * DtD * L);
     
     for (int i = 0; i < n; i++) {
       arma::mat M_i = tnsr.slice(i);
       
       arma::mat LTMR = L.t() * M_i * R;
-      arma::mat prior_term = arma::eye(r1, r1) + lambda * (L.t() * DtD * L);
+      // arma::mat prior_term = arma::eye(r1, r1) + lambda * (L.t() * DtD * L);
       // arma::mat prior_term_inv = arma::inv(prior_term);
       // G.slice(i) = prior_term_inv * LTMR; // calculate G from L, M, and R
       
@@ -171,9 +171,7 @@ Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     Rcpp::Named("L") = L,
     Rcpp::Named("R") = R,
     Rcpp::Named("G") = G,
-    Rcpp::Named("est") = est,
-    Rcpp::Named("conv") = converged,
-    Rcpp::Named("obj_func") = (curr_iter > 0) ? obj_func.subvec(0, curr_iter - 1) : obj_func.head(1)
+    Rcpp::Named("est") = est
   );
 }
 
@@ -194,6 +192,8 @@ Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
   int b = tnsr.n_cols; // original dimension of mode 2
   int n = tnsr.n_slices; // original dimension of mode 1
   
+  arma::mat DtD = D.t() * D;
+  
   int r1 = ranks(0);
   int r2 = ranks(1);
   
@@ -207,7 +207,7 @@ Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
   arma::cube filled_tnsr = tnsr;
   arma::cube indicator(a, b, n, arma::fill::ones); 
   if (!tnsr.has_nan()){
-    return cglram(tnsr, ranks, lambda, Rcpp::wrap(L_init), D, tol, max_iter);
+    return cglram(tnsr, ranks, lambda, Rcpp::wrap(L_init), D, DtD, tol, max_iter);
   }
   
   if (tnsr.has_nan()){
@@ -224,7 +224,7 @@ Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
   arma::vec obj_func(max_iter, arma::fill::zeros); // objective function
 
   while ((curr_iter < max_iter) && (!converged)) {
-    Rcpp::List glram_res = cglram(filled_tnsr, ranks, lambda, Rcpp::wrap(L_init), D, tol, max_iter); // Run algorithm for complete data on imputed tensor 
+    Rcpp::List glram_res = cglram(filled_tnsr, ranks, lambda, Rcpp::wrap(L_init), D, DtD, tol, max_iter); // Run algorithm for complete data on imputed tensor 
     
     L = Rcpp::as<arma::mat>(glram_res["L"]); 
     R = Rcpp::as<arma::mat>(glram_res["R"]);
@@ -534,7 +534,7 @@ Rcpp::List loss(Rcpp::Nullable<arma::cube> tnsr, Rcpp::Nullable<arma::cube> true
 // idea and algorithm are the same as the functions above
 
 glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, double lambda, 
-                            Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter) {
+                            Rcpp::Nullable<arma::mat> L0, const arma::mat& D,const arma::mat& DtD, double tol, int max_iter) {
   int a = tnsr.n_rows; int b = tnsr.n_cols; int n = tnsr.n_slices; 
   
   int r1 = ranks(0); int r2 = ranks(1);
@@ -546,7 +546,6 @@ glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
     L_init = Rcpp::as<arma::mat>(L0); // Initialize L0 with defined a defined matrix given by the user
   }
   
-  arma::mat DtD = D.t() * D;
   
   arma::mat A = arma::eye(D.n_cols, D.n_cols) + lambda * DtD; // A = I + lambda* t(D) %*% D
   arma::vec eigval;
@@ -602,13 +601,12 @@ glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
     L = eigvec_cal_L.head_cols(r1);
     
     double f_sum = 0.0;
-    
+    arma::mat prior_term = arma::eye(r1, r1) + lambda * (L.t() * DtD * L);
     
     for (int i = 0; i < n; i++) {
       arma::mat M_i = tnsr.slice(i);
       
       arma::mat LTMR = L.t() * M_i * R;
-      arma::mat prior_term = arma::eye(r1, r1) + lambda * (L.t() * DtD * L);
       
       G.slice(i) = arma::solve(prior_term, LTMR);
       
@@ -644,6 +642,8 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
   int b = tnsr.n_cols; // original dimension of mode 2
   int n = tnsr.n_slices; // original dimension of mode 1
   
+  arma::mat DtD = D.t() * D;
+  
   int r1 = ranks(0);
   int r2 = ranks(1);
   
@@ -657,7 +657,7 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
   arma::cube filled_tnsr = tnsr;
   arma::cube indicator(a, b, n, arma::fill::ones); 
   if (!tnsr.has_nan()){
-    return cglram_internal(tnsr, ranks, lambda, Rcpp::wrap(L_init), D, tol, max_iter);
+    return cglram_internal(tnsr, ranks, lambda, Rcpp::wrap(L_init), D, DtD, tol, max_iter);
   }
   
   if (tnsr.has_nan()){
@@ -674,7 +674,7 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
   arma::vec obj_func(max_iter, arma::fill::zeros); // objective function
   
   while ((curr_iter < max_iter) && (!converged)) {
-    glramResult glram_res = cglram_internal(filled_tnsr, ranks, lambda, Rcpp::wrap(L_init), D, tol, max_iter); // Run algorithm for complete data on imputed tensor 
+    glramResult glram_res = cglram_internal(filled_tnsr, ranks, lambda, Rcpp::wrap(L_init), D, DtD, tol, max_iter); // Run algorithm for complete data on imputed tensor 
     
     L = glram_res.L;
     R = glram_res.R;
@@ -758,7 +758,7 @@ arma::mat LambdaSeqFit_memeff(const arma::cube& tnsr, const arma::vec& ranks, co
                               Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter, double init,
                               const arma::uvec& masked_idx){ 
   int n_lambda = lambda_seq.n_elem;
-  int a = tnsr.n_rows; int b = tnsr.n_cols; int n = tnsr.n_slices;
+  // int a = tnsr.n_rows; int b = tnsr.n_cols; int n = tnsr.n_slices;
   int r1 = ranks(0);
   
   arma::mat L0_update;
@@ -872,7 +872,7 @@ arma::vec grouping_blocked(const arma::cube& tnsr, int k){
   
   arma::uword a = tnsr.n_rows;
   arma::uword b = tnsr.n_cols;
-  arma::uword n = tnsr.n_slices;
+  // arma::uword n = tnsr.n_slices;
   
   // find the length of the first mode (usually representing time)
   arma::uword time_len; 
@@ -884,9 +884,9 @@ arma::vec grouping_blocked(const arma::cube& tnsr, int k){
     arma::uword idx = nmiss_idx(i);
     
     // Find the 3-dimensional index from linear index
-    arma::uword slice_idx = idx / (a * b);
+    // arma::uword slice_idx = idx / (a * b);
     arma::uword rem = idx % (a * b);
-    arma::uword col_idx = rem / a;
+    // arma::uword col_idx = rem / a;
     arma::uword row_idx = rem % a;
     
     // Find the time (first mode) index for the current data point
