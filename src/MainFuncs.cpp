@@ -257,6 +257,7 @@ Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     if (!converged && curr_iter < (max_iter - 1)) {
       curr_iter++;
       filled_tnsr = new_M;
+      L_init = L;
     } else {
       break; 
     }
@@ -708,11 +709,12 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
     if (!converged && curr_iter < (max_iter - 1)) {
       curr_iter++;
       //filled_tnsr = new_M;
+      L_init = L;
     } else {
       break; 
     }
   }
-  return {L, R, G, est, tnsr};
+  return {L, R, G, est, filled_tnsr};
 }
 
 
