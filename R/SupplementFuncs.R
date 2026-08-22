@@ -22,42 +22,6 @@ SecDiffMat <- function(dim){
   return(masked_tnsr)
 }
 
-# mask a certain percent of data for each slice (usually each individual) evenly
-# tnsr - tnsr to be masked
-# modes - the minimum unit you want to create missing values in
-# percent - percent of data to be masked
-.mask2<-function(tnsr, modes, percent){ 
-  unfolded <- rTensor::unfold(tnsr, row_idx=modes, col_idx = setdiff(seq(1,tnsr@num_modes,by=1),modes))
-  n <- dim(unfolded)[1]
-  m <- dim(unfolded)[2]
-  for (i in 1:m){
-    idx <- which(!is.na(unfolded@data[,i]))
-    rand_sample <- sample(length(idx),ceiling(length(idx)*percent))
-    unfolded[rand_sample,i] <- NA 
-  }
-  masked_tnsr <- rTensor::fold(unfolded, row_idx = modes, col_idx = setdiff(seq(1,tnsr@num_modes,by=1),modes), modes = tnsr@modes)
-  return(masked_tnsr)
-}
-
-# mask a random percent of data for different slices of the tensor (usually individuals)
-# tnsr - tnsr to be masked
-# modes - the minimum unit you want to create missing values in
-# percent - percent of data to be masked
-.mask3<-function(tnsr, modes){ 
-  unfolded <- rTensor::unfold(tnsr, row_idx=modes, col_idx = setdiff(seq(1,tnsr@num_modes,by=1),modes))
-  n <- dim(unfolded)[1]
-  m <- dim(unfolded)[2]
-  percent <- c(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
-  for (i in 1:m){
-    idx <- which(!is.na(unfolded@data[,i]))
-    percent_i <- sample(percent,1)
-    rand_sample <- sample(length(idx),ceiling(length(idx)*percent_i))
-    unfolded[rand_sample,i] <- NA 
-  }
-  masked_tnsr <- rTensor::fold(unfolded, row_idx = modes, col_idx = setdiff(seq(1,tnsr@num_modes,by=1),modes), modes = tnsr@modes)
-  return(masked_tnsr)
-}
-
 # This function is to mask the ABPM data in a structured way: 0-20 timepoints in a 24-hour period
 # tnsr - tnsr to be masked 
 # lower - minimum number of rows to be masked
@@ -66,9 +30,12 @@ SecDiffMat <- function(dim){
   a <- tnsr@modes[1]
   n <- tnsr@modes[3]
   for (i in 1:n){
-    mask_num <- sample(c(lower:upper), 1)
-    mask_tp <- sample(c(1:a), mask_num)
-    tnsr@data[mask_tp, ,i] <- NA
+    mask_num <- if (lower == upper) lower else sample(lower:upper, 1)
+    # mask_num <- sample(c(lower:upper), 1)
+    if (mask_num > 0){
+      mask_tp <- sample(c(1:a), mask_num)
+      tnsr@data[mask_tp, ,i] <- NA
+    }
   }
   return(tnsr)
 }
@@ -118,6 +85,7 @@ sim_data1 <- function(L, G, R, E, p, noise_level, pattern, percent, lower, upper
   }
 
   out=list(sim_Msmooth=sim_Msmooth, sim_Mmiss=sim_Mmiss)
+  return(out)
 }
 
 # Generate synthetic ABPM data, when the following information are available
@@ -162,6 +130,7 @@ sim_data2 <- function(L, R, mean_G, cov_G, E, p, noise_level, pattern, percent, 
   }
   
   out=list(sim_Msmooth=sim_Msmooth, sim_Mnoise=sim_Mnoise, sim_Mmiss=sim_Mmiss, sim_G = sim_G)
+  return(out)
 }
 
 # Generate synthetic tensor data with smoothness in the 1st mode
@@ -181,7 +150,7 @@ sim_data3 <- function(L, b, r2, p, noise_sd, noise_level, pattern, percent, lowe
   
   # generate R using normal matrix and SVD 
   norm_mat_R <- matrix(stats::rnorm(b * r2, mean = 0, sd = 1), nrow = b, ncol = r2)
-  R <- svd(norm_mat_R)$u[, 1:r2]
+  R <- svd(norm_mat_R)$u[, 1:r2, drop = FALSE]
   
   # generate core tensor G from normal distribution
   G <- array(stats::rnorm(r1 * r2 * p, mean = 0, sd = 1), dim = c(r1, r2, p))
@@ -201,7 +170,7 @@ sim_data3 <- function(L, b, r2, p, noise_sd, noise_level, pattern, percent, lowe
   }
   
   out=list(sim_Msmooth=sim_Msmooth, sim_Mnoise=sim_Mnoise, sim_Mmiss=sim_Mmiss, sim_R = R, sim_G = G)
-  
+  return(out)
 }
 
 # Generate synthetic tensor data with smoothness in the 1st mode. Noises are generated from arima.sim(), which allows for autocorrelated structure.
@@ -221,7 +190,7 @@ sim_data4 <- function(L, b, r2, p, pattern, percent, lower, upper, phi, ar1_nois
   
   # generate R using normal matrix and SVD 
   norm_mat_R <- matrix(stats::rnorm(b * r2, mean = 0, sd = 1), nrow = b, ncol = r2)
-  R <- svd(norm_mat_R)$u[, 1:r2]
+  R <- svd(norm_mat_R)$u[, 1:r2, drop = FALSE]
   
   # generate core tensor G from normal distribution
   G <- array(stats::rnorm(r1 * r2 * p, mean = 0, sd = 1), dim = c(r1, r2, p))
@@ -248,7 +217,7 @@ sim_data4 <- function(L, b, r2, p, pattern, percent, lower, upper, phi, ar1_nois
   }
   
   out=list(sim_Msmooth=sim_Msmooth, sim_Mnoise=sim_Mnoise, sim_Mmiss=sim_Mmiss, sim_R = R, sim_G = G)
-  
+  return(out)
 }
 
 
@@ -275,6 +244,7 @@ MakeIdent <- function(L, G, R){
   R_tilde = R %*% U_2
   
   out = list(L_tilde = L_tilde, R_tilde = R_tilde, G_tilde = G_tilde)
+  return(out)
 }
 
 

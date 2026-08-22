@@ -11,7 +11,7 @@ struct glramResult {
   arma::mat R;         
   arma::cube G;        
   arma::cube est;
-  arma::cube filled_tnsr;
+  // arma::cube filled_tnsr;
 };
 
 struct Buffer  {
@@ -40,6 +40,11 @@ arma::cube ImputeTnsr_cpp(const arma::cube& tnsr, double num){
   arma::cube imputed = tnsr;
   imputed.elem(find_nonfinite(tnsr)).fill(num);
   return imputed;
+}
+
+// has_missing: Check if a tensor has missing values
+bool has_missing(const arma::cube& tnsr){
+  return arma::find_nonfinite(tnsr).n_elem > 0;
 }
 
 // cglram: GLRAM for complete tensor data
@@ -171,7 +176,10 @@ Rcpp::List cglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     Rcpp::Named("L") = L,
     Rcpp::Named("R") = R,
     Rcpp::Named("G") = G,
-    Rcpp::Named("est") = est
+    Rcpp::Named("est") = est,
+    Rcpp::Named("filled_tnsr") = tnsr,
+    Rcpp::Named("conv") = converged,
+    Rcpp::Named("obj_func") = obj_func.head(curr_iter + 1)
   );
 }
 
@@ -206,11 +214,12 @@ Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
 
   arma::cube filled_tnsr = tnsr;
   arma::cube indicator(a, b, n, arma::fill::ones); 
-  if (!tnsr.has_nan()){
+  
+  if (!has_missing(tnsr)){
     return cglram(tnsr, ranks, lambda, Rcpp::wrap(L_init), D, DtD, tol, max_iter);
   }
   
-  if (tnsr.has_nan()){
+  if (has_missing(tnsr)){
     indicator.elem(arma::find_nonfinite(tnsr)).fill(0); // create indicator of missingness, missing=0, non-missing=1
     filled_tnsr = ImputeTnsr_cpp(tnsr, init); // Impute missing data with a certain number
   }
@@ -253,10 +262,11 @@ Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     if (curr_iter > 0 && std::abs(obj_func(curr_iter) - obj_func(curr_iter - 1)) < tol) {
       converged = true;
     }
-
+    
+    
+    filled_tnsr = new_M;
     if (!converged && curr_iter < (max_iter - 1)) {
       curr_iter++;
-      filled_tnsr = new_M;
       L_init = L;
     } else {
       break; 
@@ -271,7 +281,7 @@ Rcpp::List mglram(const arma::cube& tnsr, const arma::vec& ranks, double lambda,
     Rcpp::Named("est") = est,
     Rcpp::Named("filled_tnsr") = filled_tnsr,
     Rcpp::Named("conv") = converged,
-    Rcpp::Named("obj_func") = (curr_iter > 0) ? obj_func.subvec(0, curr_iter - 1) : obj_func.head(1)
+    Rcpp::Named("obj_func") = obj_func.head(curr_iter + 1)
   );
 }
 
@@ -393,11 +403,11 @@ arma::mat LambdaSeqFit(const arma::cube& tnsr, const arma::vec& ranks, const arm
 // tol: tolerance, used as convergence criteria
 // max_iter: maximum number of iterations
 // init: a numeric value to impute the missing data at the beginning
-Rcpp::List kFoldLambda(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq, int k,
+Rcpp::List kFoldLambda(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq, int k, const arma::vec& groups,
                       Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter, double init){
   int n_lambda = lambda_seq.n_elem;
   arma::uvec nmiss_idx = arma::find_finite(tnsr);
-  arma::vec groups = grouping(tnsr, k); // create k groups on non-missing data
+  
   arma::vec vec_tnsr = arma::vectorise(tnsr);
 
   arma::mat MSE(n_lambda, k, arma::fill::zeros);
@@ -447,12 +457,13 @@ Rcpp::List kcv(const arma::cube& tnsr, const arma::mat& rank_grid, const arma::v
   
   arma::mat MSE_mat(n_ranks, n_lambda, arma::fill::zeros);
   arma::mat SE_mat(n_ranks, n_lambda, arma::fill::zeros);
-  arma::vec lambda_SE_vec(n_lambda, arma::fill::zeros);
+  
+  arma::vec groups = grouping(tnsr, k);
   
   // loop over ranks, and for each combination of rank, run algorithms on the seq of lambda
   for (int i = 0; i < n_ranks; i++){
     arma::vec rank_i = rank_grid.row(i).t();
-    Rcpp::List lambda_res = kFoldLambda(tnsr, rank_i, lambda_seq, k, L0, D, tol, max_iter, init);
+    Rcpp::List lambda_res = kFoldLambda(tnsr, rank_i, lambda_seq, k, groups, L0, D, tol, max_iter, init);
     
     arma::vec lambda_MSE_vec = Rcpp::as<arma::vec>(lambda_res["MSE_vec"]);
     arma::vec lambda_SE_vec = Rcpp::as<arma::vec>(lambda_res["SE_vec"]);
@@ -634,7 +645,7 @@ glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
     }
   }
   
-  return {L, R, G, est, tnsr};
+  return {L, R, G, est};
 }
 
 glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, double lambda, 
@@ -657,11 +668,11 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
   
   arma::cube filled_tnsr = tnsr;
   arma::cube indicator(a, b, n, arma::fill::ones); 
-  if (!tnsr.has_nan()){
+  if (!has_missing(tnsr)){
     return cglram_internal(tnsr, ranks, lambda, Rcpp::wrap(L_init), D, DtD, tol, max_iter);
   }
   
-  if (tnsr.has_nan()){
+  if (has_missing(tnsr)){
     indicator.elem(arma::find_nonfinite(tnsr)).fill(0); // create indicator of missingness, missing=0, non-missing=1
     filled_tnsr = ImputeTnsr_cpp(tnsr, init); // Impute missing data with a certain number
   }
@@ -714,7 +725,7 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
       break; 
     }
   }
-  return {L, R, G, est, filled_tnsr};
+  return {L, R, G, est};
 }
 
 
@@ -786,11 +797,11 @@ arma::mat LambdaSeqFit_memeff(const arma::cube& tnsr, const arma::vec& ranks, co
 
 
 // kFoldLambda_memeff: On a sequence of lambda, run k-fold cross validation and return CV error and the associated standard error
-kFoldLambdaResult kFoldLambda_memeff(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq, int k,
+kFoldLambdaResult kFoldLambda_memeff(const arma::cube& tnsr, const arma::vec& ranks, const arma::vec& lambda_seq, int k,  const arma::vec& groups,
                                      Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol, int max_iter, double init){
   int n_lambda = lambda_seq.n_elem;
   arma::uvec nmiss_idx = arma::find_finite(tnsr);
-  arma::vec groups = grouping(tnsr, k); 
+  // arma::vec groups = grouping(tnsr, k); 
   arma::vec vec_tnsr = arma::vectorise(tnsr);
   arma::cube work_tnsr = tnsr;
   
@@ -829,12 +840,13 @@ Rcpp::List kcv_memeff(const arma::cube& tnsr, const arma::mat& rank_grid, const 
   
   arma::mat MSE_mat(n_ranks, n_lambda, arma::fill::zeros);
   arma::mat SE_mat(n_ranks, n_lambda, arma::fill::zeros);
-  arma::vec lambda_SE_vec(n_lambda, arma::fill::zeros);
+  
+  arma::vec groups = grouping(tnsr, k); 
   
   // loop over ranks, and for each combination of rank, run algorithms on the seq of lambda
   for (int i = 0; i < n_ranks; i++){
     arma::vec rank_i = rank_grid.row(i).t();
-    kFoldLambdaResult lambda_res = kFoldLambda_memeff(tnsr, rank_i, lambda_seq, k, L0, D, tol, max_iter, init);
+    kFoldLambdaResult lambda_res = kFoldLambda_memeff(tnsr, rank_i, lambda_seq, k, groups, L0, D, tol, max_iter, init);
     
     arma::vec lambda_MSE_vec = lambda_res.MSE_vec;
     arma::vec lambda_SE_vec = lambda_res.SE_vec;
@@ -1069,7 +1081,4 @@ Rcpp::List kcv_hblock(const arma::cube& tnsr,
   
   return Rcpp::List::create(Rcpp::Named("MSE_mat") = MSE_mat, Rcpp::Named("SE_mat") = SE_mat, Rcpp::Named("opt_para") = opt_para);
 }
-
-
-
 

@@ -47,8 +47,9 @@ mglram(tnsr, ranks, lambda, L0, D, tol = 1e-05, max_iter = 500L, init = 0)
 \item{R}{Right orthogonal matrix (b*r2), which contains the components for the 2nd mode}
 \item{G}{Core tensor (r1*r2*n), in the array form}
 \item{est}{Estimated tensor LGR^T (a*b*n), in the array form}
+\item{filled_tnsr}{The input tensor with missing entries filled in by the model reconstruction (a*b*n), in the array form.}
 \item{conv}{A boolean that tells whether the algorithm converges}
-\item{obj_func}{A vector of objective functions collected through the algorithm iterations}
+\item{obj_func}{A vector of objective function values collected through the algorithm iterations. When \code{tnsr} contains missing values these are the values of the outer (imputation) loop; when \code{tnsr} is complete there is no outer loop and these are the values of the complete-data iterations.}
 %% ...
 }
 %%\references{

@@ -5,7 +5,7 @@ Selection of optimal hyperparameters with h-block cross-validation
 }
 \description{
 Find the optimal hyperparameters that minimize the cross-validation (CV) error in a certain search grid,
-especially when there's autocorrelated residuals in the data.
+especially when there's autocorrelated residuals in the data. 
 }
 \usage{
 kcv_hblock(tnsr, rank_grid, lambda_seq, k, h, L0, D, tol = 0.1, max_iter = 500L, init = 0)
@@ -19,7 +19,7 @@ kcv_hblock(tnsr, rank_grid, lambda_seq, k, h, L0, D, tol = 0.1, max_iter = 500L,
   A matrix in which each row is a combination of ranks r1 and r2. 
 }
   \item{lambda_seq}{
-  A vector of tuning parameters. 
+  A vector of tuning parameters. Note that lambda=0 is not meaningful for h-block CV. 
 }
   \item{k}{
   Number of folds.
