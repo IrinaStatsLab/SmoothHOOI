@@ -546,18 +546,19 @@ Rcpp::List loss(Rcpp::Nullable<arma::cube> tnsr, Rcpp::Nullable<arma::cube> true
 // idea and algorithm are the same as the functions above
 
 glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, double lambda, 
-                            Rcpp::Nullable<arma::mat> L0, const arma::mat& D,const arma::mat& DtD, double tol, int max_iter) {
+                            const arma::mat& L0, const arma::mat& D,const arma::mat& DtD, double tol, int max_iter) {
   int a = tnsr.n_rows; int b = tnsr.n_cols; int n = tnsr.n_slices; 
   
   int r1 = ranks(0); int r2 = ranks(1);
   
-  arma::mat L_init;
-  if (L0.isNull()) {
-    L_init = init_L(tnsr, r1); // If the user doesn't provide L0, initialize it with init_L()
-  } else {
-    L_init = Rcpp::as<arma::mat>(L0); // Initialize L0 with defined a defined matrix given by the user
-  }
-  
+  // arma::mat L_init;
+  // if (L0.isNull()) {
+  //   L_init = init_L(tnsr, r1); // If the user doesn't provide L0, initialize it with init_L()
+  // } else {
+  //   L_init = Rcpp::as<arma::mat>(L0); // Initialize L0 with defined a defined matrix given by the user
+  // }
+  // 
+  arma::mat L_init = L0;
   
   arma::mat A = arma::eye(D.n_cols, D.n_cols) + lambda * DtD; // A = I + lambda* t(D) %*% D
   arma::vec eigval;
@@ -649,7 +650,7 @@ glramResult cglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
 }
 
 glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, double lambda, 
-                            Rcpp::Nullable<arma::mat> L0, const arma::mat& D, double tol=1e-5, int max_iter=500, double init=0) {
+                            const arma::mat& L0, const arma::mat& D, double tol=1e-5, int max_iter=500, double init=0) {
   int a = tnsr.n_rows; // original dimension of mode 1
   int b = tnsr.n_cols; // original dimension of mode 2
   int n = tnsr.n_slices; // original dimension of mode 1
@@ -659,17 +660,19 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
   int r1 = ranks(0);
   int r2 = ranks(1);
   
-  arma::mat L_init;
-  if (L0.isNull()) {
-    L_init = init_L(tnsr, r1); // If the user doesn't provide L0, initialize it with init_L()
-  } else {
-    L_init = Rcpp::as<arma::mat>(L0); // Initialize L0 with defined a defined matrix given by the user
-  }
+  // arma::mat L_init;
+  // if (L0.isNull()) {
+  //   L_init = init_L(tnsr, r1); // If the user doesn't provide L0, initialize it with init_L()
+  // } else {
+  //   L_init = Rcpp::as<arma::mat>(L0); // Initialize L0 with defined a defined matrix given by the user
+  // }
+  
+  arma::mat L_init = L0;
   
   arma::cube filled_tnsr = tnsr;
   arma::cube indicator(a, b, n, arma::fill::ones); 
   if (!has_missing(tnsr)){
-    return cglram_internal(tnsr, ranks, lambda, Rcpp::wrap(L_init), D, DtD, tol, max_iter);
+    return cglram_internal(tnsr, ranks, lambda, L_init, D, DtD, tol, max_iter);
   }
   
   if (has_missing(tnsr)){
@@ -682,11 +685,11 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
   arma::mat L, R; // L and R matrices (corresponding to r1 (mode 1) and r2 (mode 2))
   arma::cube G(r1, r2, n, arma::fill::zeros); // core tensor G
   arma::cube est(a, b, n, arma::fill::zeros); // estimation LGR^T
-  // arma::cube new_M(a, b, n, arma::fill::zeros); // store the updated M tensor
+  arma::cube new_M(a, b, n, arma::fill::zeros); // store the updated M tensor
   arma::vec obj_func(max_iter, arma::fill::zeros); // objective function
   
   while ((curr_iter < max_iter) && (!converged)) {
-    glramResult glram_res = cglram_internal(filled_tnsr, ranks, lambda, Rcpp::wrap(L_init), D, DtD, tol, max_iter); // Run algorithm for complete data on imputed tensor 
+    glramResult glram_res = cglram_internal(filled_tnsr, ranks, lambda, L_init, D, DtD, tol, max_iter); // Run algorithm for complete data on imputed tensor 
     
     L = glram_res.L;
     R = glram_res.R;
@@ -702,8 +705,8 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
       arma::mat G_i = G.slice(i);
       arma::mat est_i = est.slice(i);
       arma::mat mat1(a, b, arma::fill::ones);
-      //new_M.slice(i) = est_i % (mat1-H_i) + M_i % H_i; // update the missing data with estimated values from LGR^T
-      filled_tnsr.slice(i) = est_i % (mat1-H_i) + M_i % H_i;
+      new_M.slice(i) = est_i % (mat1-H_i) + M_i % H_i; // update the missing data with estimated values from LGR^T
+      // filled_tnsr.slice(i) = est_i % (mat1-H_i) + M_i % H_i;
       
       term1 += std::pow(arma::norm((M_i % H_i) - (est_i % H_i), "fro"), 2); // first term of objective function
       arma::mat term2_mat = D * L * G_i * R.t();
@@ -716,6 +719,8 @@ glramResult mglram_internal(const arma::cube& tnsr, const arma::vec& ranks, doub
     if (curr_iter > 0 && std::abs(obj_func(curr_iter) - obj_func(curr_iter - 1)) < tol) {
       converged = true;
     }
+    
+    filled_tnsr = new_M;
     
     if (!converged && curr_iter < (max_iter - 1)) {
       curr_iter++;
@@ -743,9 +748,19 @@ Rcpp::List oracle_memeff(const arma::cube& tnsr, const arma::cube& smooth_tnsr, 
   double lambda_j;
   for (int i = 0; i < n_ranks; i++){
     rank_i = rank_grid.row(i).t();
+    
+    int r1 = rank_i(0);
+    
+    arma::mat L_init;
+    if (L0.isNull()) {
+      L_init = init_L(tnsr, r1); // If the user doesn't provide L0, initialize it with init_L()
+    } else {
+      L_init = Rcpp::as<arma::mat>(L0); // Initialize L0 with defined a defined matrix given by the user
+    }
+    
     for (int j = 0; j < n_lambda; j++){
       lambda_j = lambda_seq(j);
-      glramResult res = mglram_internal(tnsr, rank_i, lambda_j, L0, D, tol, max_iter, init);
+      glramResult res = mglram_internal(tnsr, rank_i, lambda_j, L_init, D, tol, max_iter, init);
       
       arma::cube diff = res.est - smooth_tnsr;
       error(i,j) = arma::accu(diff % diff) / n;
@@ -787,7 +802,7 @@ arma::mat LambdaSeqFit_memeff(const arma::cube& tnsr, const arma::vec& ranks, co
   
   for (int i = 0; i < n_lambda; i++){
     double lambda_i = lambda_seq(i);
-    glramResult res = mglram_internal(tnsr, ranks, lambda_i, Rcpp::wrap(L0_update), D, tol, max_iter, init);
+    glramResult res = mglram_internal(tnsr, ranks, lambda_i, L0_update, D, tol, max_iter, init);
     L0_update = res.L;
     arma::vec vec_tnsr = arma::vectorise(res.est);
     vectorized_tnsrs.col(i) = vec_tnsr.elem(masked_idx);
@@ -997,7 +1012,7 @@ arma::mat LambdaSeqFit_blocked(const arma::cube& tnsr, const arma::vec& ranks, c
   
   for (int i = 0; i < n_lambda; i++){
     double lam = lambda_seq(i);
-    glramResult res = mglram_internal(train_tnsr, ranks, lam, Rcpp::wrap(L0_update), D, tol, max_iter, init);
+    glramResult res = mglram_internal(train_tnsr, ranks, lam, L0_update, D, tol, max_iter, init);
     
     L0_update = res.L; 
     
