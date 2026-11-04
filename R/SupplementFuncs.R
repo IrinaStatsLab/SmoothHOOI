@@ -247,4 +247,212 @@ MakeIdent <- function(L, G, R){
   return(out)
 }
 
+# Compress 3rd mode, release the factor matrix from being identity 
+# tnsr: a x b x n (time x measurement x subject)
+# ranks: c(r1, r2, r3)
+# lambda: smoothing parameter
+# L0: initial value for L, a x r1
+# C0: initial value for C, n x r3
+# D: second order difference matrix, a x a
+# tol: convergence tolerance
+# max_iter: maximum number of iterations
+# init: initial value for missing entries
+# identify: whether to perform identifiability correction
+mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
+                         tol = 1e-5, max_iter = 500, init = 0, identify = TRUE) {
+  
+  if (length(dim(tnsr)) != 3) stop("tnsr must be a three-way array.")
+  if (length(ranks) != 3) stop("ranks must be c(r1, r2, r3).")
+  if (nrow(D) != ncol(D)) stop("D must be square.")
+  
+  a <- dim(tnsr)[1]; b <- dim(tnsr)[2]; n <- dim(tnsr)[3]
+  r1 <- ranks[1]; r2 <- ranks[2]; r3 <- ranks[3]
+  
+  if (a != nrow(D))
+    stop(sprintf("Time must be mode 1: D is %d x %d but dim(tnsr) = %s.",
+                 nrow(D), ncol(D), paste(dim(tnsr), collapse = " x ")))
+  if (r1 > a || r2 > b || r3 > n) stop("Specified ranks exceed tensor dimensions.")
+  
+  ## rank(K) <= min(n, r1*r2)
+  r3_max <- min(n, r1 * r2)
+  if (r3 > r3_max) {
+    warning(sprintf("r3 = %d exceeds min(n, r1*r2) = %d; capping at %d.",
+                    r3, r3_max, r3_max))
+    r3 <- r3_max
+  }
+  
+  Omega <- !is.na(tnsr)
+  M_fill <- tnsr
+  M_fill[!Omega] <- init
+  has_miss <- !all(Omega)
+  
+  ## smoothing operators
+  D_tilde <- rbind(diag(a), sqrt(lambda) * D)
+  A <- diag(a) + lambda * crossprod(D)
+  eg <- eigen(A, symmetric = TRUE)
+  A_sqrt <- eg$vectors %*% diag(sqrt(eg$values)) %*% t(eg$vectors)
+  A_inv_sqrt <- eg$vectors %*% diag(1 / sqrt(eg$values)) %*% t(eg$vectors)
+  
+  slice <- function(A3, i) A3[, , i, drop = FALSE][, , 1]
+  
+  ## initialization
+  if (is.null(L0)) L0 <- diag(a)[, seq_len(r1), drop = FALSE]
+  if (!all(dim(L0) == c(a, r1))) stop("L0 has incorrect dimensions.")
+  
+  U <- svd(A_sqrt %*% L0, nu = r1, nv = 0)$u
+  
+  if (is.null(C0)) {
+    M_tilde <- array(A_inv_sqrt %*% matrix(M_fill, nrow = a), dim = c(a, b, n))
+    unf_subj <- t(matrix(M_tilde, nrow = a * b, ncol = n))
+    C0 <- svd(unf_subj, nu = r3, nv = 0)$u
+  }
+  if (!all(dim(C0) == c(n, r3))) stop("C0 has incorrect dimensions.")
+  C <- C0
+  
+  ## complete-data alternating updates
+  inner <- function(Mf, U, C, max_it, tl) {
+    o_old <- Inf
+    
+    for (it in seq_len(max_it)) {
+      
+      ## N_l = sum_i C_il M_i
+      Z <- array(0, dim = c(a, b, r3))
+      for (l in seq_len(r3)) {
+        for (i in seq_len(n))
+          Z[, , l] <- Z[, , l] + C[i, l] * slice(Mf, i)
+      }
+      
+      ## R-step
+      SU <- A_inv_sqrt %*% U
+      MR <- matrix(0, b, b)
+      for (l in seq_len(r3)) {
+        H <- crossprod(Z[, , l], SU)
+        MR <- MR + tcrossprod(H)
+      }
+      MR <- (MR + t(MR)) / 2
+      R <- eigen(MR, symmetric = TRUE)$vectors[, seq_len(r2), drop = FALSE]
+      
+      ## U-step
+      MU <- matrix(0, a, a)
+      for (l in seq_len(r3)) {
+        H <- A_inv_sqrt %*% Z[, , l] %*% R
+        MU <- MU + tcrossprod(H)
+      }
+      MU <- (MU + t(MU)) / 2
+      U <- eigen(MU, symmetric = TRUE)$vectors[, seq_len(r1), drop = FALSE]
+      
+      ## C-step
+      AU <- A_inv_sqrt %*% U
+      K <- matrix(0, n, r1 * r2)
+      for (i in seq_len(n))
+        K[i, ] <- as.vector(crossprod(AU, slice(Mf, i)) %*% R)
+      
+      C <- svd(K, nu = r3, nv = 0)$u
+      
+      ## recover L
+      M_L <- A_inv_sqrt %*% tcrossprod(U) %*% A_inv_sqrt
+      M_L <- (M_L + t(M_L)) / 2
+      L <- eigen(M_L, symmetric = TRUE)$vectors[, seq_len(r1), drop = FALSE]
+      
+      ## recover core
+      Bi <- solve(crossprod(D_tilde %*% L))
+      G <- array(0, dim = c(r3, r1, r2))
+      
+      for (l in seq_len(r3)) {
+        Mbar <- matrix(0, a, b)
+        for (i in seq_len(n))
+          Mbar <- Mbar + C[i, l] * slice(Mf, i)
+        G[l, , ] <- Bi %*% crossprod(L, Mbar) %*% R
+      }
+      
+      ## fitted values and penalty
+      fit <- pen <- array(0, dim = c(a, b, n))
+      DL <- D %*% L
+      
+      for (i in seq_len(n)) {
+        Gam <- matrix(0, r1, r2)
+        for (l in seq_len(r3))
+          Gam <- Gam + C[i, l] * G[l, , ]
+        
+        fit[, , i] <- L %*% Gam %*% t(R)
+        pen[, , i] <- DL %*% Gam %*% t(R)
+      }
+      
+      o <- sum((Mf - fit)^2) + lambda * sum(pen^2)
+      if (is.finite(o_old) && abs(o_old - o) <= tl * max(1, abs(o_old))) break
+      o_old <- o
+    }
+    
+    list(L = L, R = R, C = C, G = G, U = U, fit = fit, pen = pen, inner_iter = it)
+  }
+  
+  ## MLSVD identification
+  identify_MLSVD <- function(C, L, R, G) {
+    unf <- function(G, k) {
+      if (k == 1) matrix(G, nrow = r3)
+      else if (k == 2) matrix(aperm(G, c(2, 1, 3)), nrow = r1)
+      else matrix(aperm(G, c(3, 1, 2)), nrow = r2)
+    }
+    
+    s1 <- svd(unf(G, 1)); s2 <- svd(unf(G, 2)); s3 <- svd(unf(G, 3))
+    U1 <- s1$u[, seq_len(r3), drop = FALSE]
+    U2 <- s2$u[, seq_len(r1), drop = FALSE]
+    U3 <- s3$u[, seq_len(r2), drop = FALSE]
+    
+    Gt <- rTensor::ttl(as.tensor(G), list(t(U1), t(U2), t(U3)), ms = c(1, 2, 3))@data
+    
+    list(C = C %*% U1, L = L %*% U2, R = R %*% U3, G = Gt)
+  }
+  
+  finalize <- function(res, obj_vec, conv) {
+    
+    if (identify) {
+      idn <- identify_MLSVD(res$C, res$L, res$R, res$G)
+      res$C <- idn$C; res$L <- idn$L; res$R <- idn$R; res$G <- idn$G
+    }
+    
+    list(L = res$L, R = res$R, C = res$C, G = res$G, U = res$U,
+         est = res$fit, obj_vec = obj_vec, conv = conv)
+  }
+  
+  ## complete data
+  if (!has_miss) {
+    res <- inner(M_fill, U, C, max_iter, tol)
+    obj <- sum((M_fill - res$fit)^2) + lambda * sum(res$pen^2)
+    return(finalize(res, obj, TRUE))
+  }
+  
+  ## missing-data outer loop
+  obj_vec <- rep(NA_real_, max_iter)
+  conv <- FALSE
+  o_old <- Inf
+  
+  for (t in seq_len(max_iter)) {
+    res <- inner(M_fill, U, C, max_iter, tol)
+    U <- res$U; C <- res$C
+    
+    o <- sum((tnsr[Omega] - res$fit[Omega])^2) + lambda * sum(res$pen^2)
+    obj_vec[t] <- o
+    
+    if (is.finite(o_old) && o > o_old + 1e-8 * max(1, abs(o_old)))
+      warning(sprintf("Objective increased at outer iteration %d.", t))
+    
+    M_fill[!Omega] <- res$fit[!Omega]
+    
+    if (is.finite(o_old) && abs(o_old - o) <= tol * max(1, abs(o_old))) {
+      conv <- TRUE
+      break
+    }
+    
+    o_old <- o
+  }
+  
+  finalize(res, obj_vec[seq_len(t)], conv)
+}
+
+
+
+
+
+
 
