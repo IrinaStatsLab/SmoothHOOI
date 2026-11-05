@@ -51,7 +51,6 @@ Logical. Whether to perform identifiability correction
 \item{R}{Second-mode factor matrix (b*r2)}
 \item{C}{Third-mode factor matrix (n*r3)}
 \item{G}{Core tensor (r1*r2*r3)}
-\item{U}{Intermediate matrix for updating L in the algorithm}
 \item{est}{Estimated tensor}
 \item{obj_vec}{Vector containing objective values through updates}
 \item{conv}{A boolean that tells whether the algorithm converges}

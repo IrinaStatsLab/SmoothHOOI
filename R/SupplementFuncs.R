@@ -247,6 +247,87 @@ MakeIdent <- function(L, G, R){
   return(out)
 }
 
+# Calculate incremental and accumulative explained variability for SmoothHOOI result (2-way compression)
+# M_denom: original tensor to fit, may include missing data
+# L_tilde: L after identifiability correction
+# G_tilde: G after identifiability correction
+# R_tilde: R after identifiability correction
+calc_EV_LGR <- function(M_denom, L_tilde, G_tilde, R_tilde) {
+  
+  r1 <- ncol(L_tilde)
+  r2 <- ncol(R_tilde)
+  n  <- dim(G_tilde)[3]
+  
+  ## SST: uncentered, over observed entries only
+  denom <- sum(M_denom[!is.na(M_denom)]^2)
+  
+  cum_EV_L <- numeric(r1)
+  
+  for (k in seq_len(r1)) {
+    
+    sse <- 0
+    
+    for (i in seq_len(n)) {
+      
+      M_i <- M_denom[, , i]
+      
+      L_k <- L_tilde[, seq_len(k), drop = FALSE]
+      
+      G_k <- matrix(G_tilde[seq_len(k), , i], nrow = k, ncol = r2)
+      
+      fit_i <- L_k %*% G_k %*% t(R_tilde)
+      
+      obs_i <- which(!is.na(M_i))
+      sse <- sse + sum((M_i[obs_i] - fit_i[obs_i])^2)
+      
+    }
+    
+    cum_EV_L[k] <- 1 - sse / denom
+  }
+  
+  sep_EV_L <- diff(c(0, cum_EV_L))
+  
+  
+  cum_EV_R <- numeric(r2)
+  
+  for (k in seq_len(r2)) {
+    
+    sse <- 0
+    
+    for (i in seq_len(n)) {
+      
+      M_i <- M_denom[, , i]
+      
+      R_k <- R_tilde[, seq_len(k), drop = FALSE]
+      
+      G_k <- matrix(G_tilde[, seq_len(k), i], nrow = r1, ncol = k)
+      
+      fit_i <- L_tilde %*% G_k %*% t(R_k)
+      
+      obs_i <- which(!is.na(M_i))
+      sse <- sse + sum((M_i[obs_i] - fit_i[obs_i])^2)
+      
+    }
+    
+    cum_EV_R[k] <- 1 - sse / denom
+  }
+  
+  sep_EV_R <- diff(c(0, cum_EV_R))
+  
+  return(
+    list(cum_EV_L = cum_EV_L, sep_EV_L = sep_EV_L, cum_EV_R = cum_EV_R, sep_EV_R = sep_EV_R)
+  )
+}
+
+# Calculate total explained variability 
+# M_denom: original tensor to fit (in an array form), may include missing data
+# est: estimated tensor from SmoothHOOI
+calc_EV_est <- function(M_denom, est){
+  nmiss_idx <- which(!is.na(M_denom))
+  ev <- 1 - sum((M_denom[nmiss_idx] - est[nmiss_idx])^2)/sum(M_denom[nmiss_idx]^2)
+  return(ev)
+}
+
 # Compress 3rd mode, release the factor matrix from being identity 
 # tnsr: a x b x n (time x measurement x subject)
 # ranks: c(r1, r2, r3)
@@ -281,6 +362,9 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
     r3 <- r3_max
   }
   
+  if (r1 > r2 * r3 || r2 > r1 * r3)
+    stop("Tucker ranks require r1 <= r2*r3 and r2 <= r1*r3.")
+  
   Omega <- !is.na(tnsr)
   M_fill <- tnsr
   M_fill[!Omega] <- init
@@ -293,7 +377,7 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
   A_sqrt <- eg$vectors %*% diag(sqrt(eg$values)) %*% t(eg$vectors)
   A_inv_sqrt <- eg$vectors %*% diag(1 / sqrt(eg$values)) %*% t(eg$vectors)
   
-  slice <- function(A3, i) A3[, , i, drop = FALSE][, , 1]
+  .slice <- function(A3, i) A3[, , i, drop = FALSE][, , 1]
   
   ## initialization
   if (is.null(L0)) L0 <- diag(a)[, seq_len(r1), drop = FALSE]
@@ -310,7 +394,7 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
   C <- C0
   
   ## complete-data alternating updates
-  inner <- function(Mf, U, C, max_it, tl) {
+  .inner <- function(Mf, U, C, max_it, tl) {
     o_old <- Inf
     
     for (it in seq_len(max_it)) {
@@ -319,7 +403,7 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
       Z <- array(0, dim = c(a, b, r3))
       for (l in seq_len(r3)) {
         for (i in seq_len(n))
-          Z[, , l] <- Z[, , l] + C[i, l] * slice(Mf, i)
+          Z[, , l] <- Z[, , l] + C[i, l] * .slice(Mf, i)
       }
       
       ## R-step
@@ -345,7 +429,7 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
       AU <- A_inv_sqrt %*% U
       K <- matrix(0, n, r1 * r2)
       for (i in seq_len(n))
-        K[i, ] <- as.vector(crossprod(AU, slice(Mf, i)) %*% R)
+        K[i, ] <- as.vector(crossprod(AU, .slice(Mf, i)) %*% R)
       
       C <- svd(K, nu = r3, nv = 0)$u
       
@@ -361,7 +445,7 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
       for (l in seq_len(r3)) {
         Mbar <- matrix(0, a, b)
         for (i in seq_len(n))
-          Mbar <- Mbar + C[i, l] * slice(Mf, i)
+          Mbar <- Mbar + C[i, l] * .slice(Mf, i)
         G[l, , ] <- Bi %*% crossprod(L, Mbar) %*% R
       }
       
@@ -383,43 +467,44 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
       o_old <- o
     }
     
-    list(L = L, R = R, C = C, G = G, U = U, fit = fit, pen = pen, inner_iter = it)
+    list(L = L, R = R, C = C, U = U, G = G, fit = fit, pen = pen, inner_iter = it)
   }
   
-  ## MLSVD identification
-  identify_MLSVD <- function(C, L, R, G) {
-    unf <- function(G, k) {
+  ## MLSVD identification for three way compression
+  .identify_MLSVD <- function(C, L, R, G) {
+    .unf <- function(G, k) {
       if (k == 1) matrix(G, nrow = r3)
       else if (k == 2) matrix(aperm(G, c(2, 1, 3)), nrow = r1)
       else matrix(aperm(G, c(3, 1, 2)), nrow = r2)
     }
     
-    s1 <- svd(unf(G, 1)); s2 <- svd(unf(G, 2)); s3 <- svd(unf(G, 3))
+    s1 <- svd(.unf(G, 1)); s2 <- svd(.unf(G, 2)); s3 <- svd(.unf(G, 3))
     U1 <- s1$u[, seq_len(r3), drop = FALSE]
     U2 <- s2$u[, seq_len(r1), drop = FALSE]
     U3 <- s3$u[, seq_len(r2), drop = FALSE]
     
-    Gt <- rTensor::ttl(as.tensor(G), list(t(U1), t(U2), t(U3)), ms = c(1, 2, 3))@data
+    Gt <- rTensor::ttl(rTensor::as.tensor(G), list(t(U1), t(U2), t(U3)), ms = c(1, 2, 3))@data
     
     list(C = C %*% U1, L = L %*% U2, R = R %*% U3, G = Gt)
   }
   
-  finalize <- function(res, obj_vec, conv) {
+  
+  .finalize <- function(res, obj_vec, conv) {
     
     if (identify) {
-      idn <- identify_MLSVD(res$C, res$L, res$R, res$G)
+      idn <- .identify_MLSVD(res$C, res$L, res$R, res$G)
       res$C <- idn$C; res$L <- idn$L; res$R <- idn$R; res$G <- idn$G
     }
     
-    list(L = res$L, R = res$R, C = res$C, G = res$G, U = res$U,
+    list(L = res$L, R = res$R, C = res$C, G = res$G,
          est = res$fit, obj_vec = obj_vec, conv = conv)
   }
   
   ## complete data
   if (!has_miss) {
-    res <- inner(M_fill, U, C, max_iter, tol)
+    res <- .inner(M_fill, U, C, max_iter, tol)
     obj <- sum((M_fill - res$fit)^2) + lambda * sum(res$pen^2)
-    return(finalize(res, obj, TRUE))
+    return(.finalize(res, obj, TRUE))
   }
   
   ## missing-data outer loop
@@ -427,15 +512,15 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
   conv <- FALSE
   o_old <- Inf
   
-  for (t in seq_len(max_iter)) {
-    res <- inner(M_fill, U, C, max_iter, tol)
+  for (iter in seq_len(max_iter)) {
+    res <- .inner(M_fill, U, C, max_iter, tol)
     U <- res$U; C <- res$C
     
     o <- sum((tnsr[Omega] - res$fit[Omega])^2) + lambda * sum(res$pen^2)
-    obj_vec[t] <- o
+    obj_vec[iter] <- o
     
     if (is.finite(o_old) && o > o_old + 1e-8 * max(1, abs(o_old)))
-      warning(sprintf("Objective increased at outer iteration %d.", t))
+      warning(sprintf("Objective increased at outer iteration %d.", iter))
     
     M_fill[!Omega] <- res$fit[!Omega]
     
@@ -447,9 +532,8 @@ mglram_freeC <- function(tnsr, ranks, lambda, L0 = NULL, C0 = NULL, D,
     o_old <- o
   }
   
-  finalize(res, obj_vec[seq_len(t)], conv)
+  .finalize(res, obj_vec[seq_len(iter)], conv)
 }
-
 
 
 
